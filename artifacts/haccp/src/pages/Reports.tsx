@@ -124,7 +124,7 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
                     style={{ borderBottom: i < tempReports.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{r.week}</div>
-                      <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{r.rows.filter(row => row.avg).length} obj · {r.date} {r.time}{r.paraaf ? ` · ${r.paraaf}` : ""}</div>
+                      <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{r.rows.filter(row => row.avg).length} obj · {r.date}{r.paraaf ? ` · ${r.paraaf}` : ""}</div>
                       <div className="flex gap-1.5 mt-1.5 flex-wrap">
                         {nokCount > 0 && <span className="badge-nok">{nokCount} NOK</span>}
                         {warnCount > 0 && <span className="badge-warn">{warnCount} let op</span>}
@@ -193,7 +193,7 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
                       style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{r.datum}</div>
-                        <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Door: {r.door || "—"} · {r.time}</div>
+                        <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Door: {r.door || "—"}</div>
                         <div className="mt-1.5">
                           <span className={done === total ? "badge-ok" : "badge-warn"}>{done}/{total} taken afgevinkt</span>
                         </div>

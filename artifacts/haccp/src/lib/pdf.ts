@@ -154,7 +154,7 @@ function makePDF(title: string, sections: Array<{
 export function downloadTempReport(r: TempReport): void {
   const sec = {
     title: `Temperatuurrapport – ${r.week}`,
-    subtitle: `Opgeslagen: ${r.date} om ${r.time}  ·  Paraaf: ${r.paraaf || "—"}`,
+    subtitle: `Datum: ${r.date}  ·  Paraaf: ${r.paraaf || "—"}`,
     headers: ["Object", "Type", "1e meting", "2e meting", "3e meting", "Gemiddeld", "Status", "Maatregel"],
     rows: r.rows.map((row) => [
       row.object, row.type, row.m1 || "—", row.m2 || "—", row.m3 || "—",
@@ -294,7 +294,7 @@ export function downloadMonthlyOverview(
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...C.textMuted);
-      doc.text(`Opgeslagen: ${r.date} om ${r.time}  ·  Paraaf: ${r.paraaf || "—"}`, 19, y);
+      doc.text(`Datum: ${r.date}  ·  Paraaf: ${r.paraaf || "—"}`, 19, y);
       y += 3;
       autoTable(doc, {
         head: [["Object", "Type", "1e", "2e", "3e", "Gem.", "Status", "Maatregel"]],
@@ -330,7 +330,7 @@ export function downloadMonthlyOverview(
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...C.textMuted);
-      doc.text(`Uitgevoerd door: ${r.door || "—"}  ·  Opgeslagen om ${r.time}`, 19, y);
+      doc.text(`Uitgevoerd door: ${r.door || "—"}`, 19, y);
       y += 3;
       autoTable(doc, {
         head: [["Taak", "Afgevinkt", "Tijdstip", "Opmerking"]],
