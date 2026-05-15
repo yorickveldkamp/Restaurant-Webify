@@ -18,14 +18,6 @@ export function Settings({ onClear, currentName, onChangeName }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="card px-5 py-4">
-        <div className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--text-muted)" }}>Over deze app</div>
-        <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          HACCP Beheer slaat alle gegevens op in een centrale database op de server.
-          Je gegevens zijn beschikbaar op alle apparaten voor alle medewerkers.
-        </p>
-      </div>
-
       <div className="card overflow-hidden">
         <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
           <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Jouw naam</span>

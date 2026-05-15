@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { OBJECTS, TempRow, TempReport, statusForTemp, worstStatus, uid, todayDate, nowTime, Status } from "../lib/data";
 import { isoWeekNumber } from "../lib/schedule";
 import { Badge } from "../components/Badge";
 import { exportAllTempCSV } from "../lib/pdf";
+import { loadDraft, saveDraft, clearDraft, tempDraftKey } from "../lib/storage";
 
 interface Props {
   tempReports: TempReport[];
@@ -12,6 +13,7 @@ interface Props {
 }
 
 type Measurements = Record<string, { m1: string; m2: string; m3: string; maatregel: string }>;
+interface DraftShape { week: string; paraaf: string; measurements: Measurements; }
 
 function initM(): Measurements {
   const m: Measurements = {};
@@ -19,21 +21,16 @@ function initM(): Measurements {
   return m;
 }
 
-/** Generate last 52 weeks + next 4 weeks as "Week X – YYYY" */
 function buildWeekOptions(): { label: string; value: string }[] {
   const options: { label: string; value: string }[] = [];
   const now = new Date();
-  // Start 4 weeks in the future, go back 55 weeks
   for (let offset = 4; offset >= -51; offset--) {
     const d = new Date(now);
     d.setDate(d.getDate() + offset * 7);
     const week = isoWeekNumber(d);
     const year = d.getFullYear();
-    // Correct year for week 1 in late December
     const label = `Week ${week} – ${year}`;
-    if (!options.find(o => o.value === label)) {
-      options.push({ label, value: label });
-    }
+    if (!options.find(o => o.value === label)) options.push({ label, value: label });
   }
   return options;
 }
@@ -45,6 +42,33 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
   const [week, setWeek] = useState(defaultWeek);
   const [paraaf, setParaaf] = useState(autoFillParaaf);
   const [measurements, setMeasurements] = useState<Measurements>(initM);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const hydrated = useRef(false);
+
+  // Restore draft on mount, with shape validation against current OBJECTS
+  useEffect(() => {
+    const draft = loadDraft<DraftShape>(tempDraftKey());
+    if (draft && draft.measurements && typeof draft.measurements === "object") {
+      const sanitized = initM();
+      OBJECTS.forEach(o => {
+        const src = (draft.measurements as Measurements)[o.id];
+        if (src && typeof src === "object") {
+          sanitized[o.id] = {
+            m1: typeof src.m1 === "string" ? src.m1 : "",
+            m2: typeof src.m2 === "string" ? src.m2 : "",
+            m3: typeof src.m3 === "string" ? src.m3 : "",
+            maatregel: typeof src.maatregel === "string" ? src.maatregel : "",
+          };
+        }
+      });
+      setWeek(typeof draft.week === "string" && draft.week ? draft.week : defaultWeek);
+      setParaaf(typeof draft.paraaf === "string" ? draft.paraaf : autoFillParaaf);
+      setMeasurements(sanitized);
+      setDraftRestored(true);
+    }
+    hydrated.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const update = (id: string, field: "m1" | "m2" | "m3" | "maatregel", value: string) =>
     setMeasurements(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
@@ -55,26 +79,50 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
     return worstStatus(vals.map(v => statusForTemp(v, obj.type)));
   };
 
+  // Completeness: every object must have all 3 measurements + paraaf must be set
+  const totalRequired = OBJECTS.length * 3;
+  const filledCount = OBJECTS.reduce((acc, obj) => {
+    const m = measurements[obj.id];
+    return acc + (m.m1 !== "" ? 1 : 0) + (m.m2 !== "" ? 1 : 0) + (m.m3 !== "" ? 1 : 0);
+  }, 0);
+  const allMeasurementsFilled = filledCount === totalRequired;
+  const isComplete = allMeasurementsFilled && paraaf.trim().length > 0 && week.trim().length > 0;
+
+  const resetForm = () => {
+    setMeasurements(initM());
+    setParaaf(autoFillParaaf);
+    setWeek(defaultWeek);
+    clearDraft(tempDraftKey());
+    setDraftRestored(false);
+  };
+
+  const saveDraftNow = () => {
+    saveDraft<DraftShape>(tempDraftKey(), { week, paraaf, measurements });
+    onToast("Tussentijds opgeslagen — je kan later verder");
+  };
+
+  const discardDraft = () => {
+    if (!confirm("Tussentijdse versie verwijderen?")) return;
+    resetForm();
+    onToast("Tussentijdse versie verwijderd");
+  };
+
   const saveReport = () => {
-    if (!week.trim()) { onToast("Selecteer een week."); return; }
-    const rows: TempRow[] = [];
-    let anyData = false;
-    OBJECTS.forEach(obj => {
+    if (!isComplete) {
+      onToast(`Vul eerst alle metingen in (${filledCount}/${totalRequired}) en je paraaf.`);
+      return;
+    }
+    const rows: TempRow[] = OBJECTS.map(obj => {
       const { m1, m2, m3, maatregel } = measurements[obj.id];
-      const vals = [m1, m2, m3].filter(v => v !== "");
-      if (!vals.length) { rows.push({ object: obj.label, type: obj.type, m1: "", m2: "", m3: "", avg: "", status: null, maatregel }); return; }
-      anyData = true;
-      const statuses = vals.map(v => statusForTemp(v, obj.type));
+      const statuses = [m1, m2, m3].map(v => statusForTemp(v, obj.type));
       const ws = worstStatus(statuses);
-      const avg = vals.reduce((a, b) => a + parseFloat(b), 0) / vals.length;
-      rows.push({ object: obj.label, type: obj.type, m1, m2, m3, avg: avg.toFixed(1), status: ws, maatregel });
+      const avg = ([m1, m2, m3].reduce((a, b) => a + parseFloat(b), 0) / 3).toFixed(1);
+      return { object: obj.label, type: obj.type, m1, m2, m3, avg, status: ws, maatregel };
     });
-    if (!anyData) { onToast("Voer eerst metingen in."); return; }
     const allStatuses = rows.map(r => r.status).filter(Boolean) as Status[];
     onSave({ id: uid(), week, paraaf, date: todayDate(), time: nowTime(), rows, overallStatus: worstStatus(allStatuses), type: "temp" });
     onToast(`Rapport "${week}" opgeslagen`);
-    setMeasurements(initM());
-    setParaaf("");
+    resetForm();
   };
 
   const inputCls = "input-brand w-full";
@@ -88,18 +136,25 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
         <strong style={{ color: "var(--text)" }}>Diepvries:</strong> max −18,0°C | afkeur ≥ −17,9°C
       </div>
 
+      {draftRestored && (
+        <div className="px-4 py-2.5 text-xs flex items-center justify-between gap-3"
+          style={{ background: "#fff8e6", borderLeft: "3px solid #d4a73a", color: "#6b5215" }}>
+          <span>Tussentijdse versie hersteld — vul aan en sla op als rapport zodra alles ingevuld is.</span>
+          <button onClick={discardDraft}
+            className="text-xs underline shrink-0"
+            style={{ color: "#6b5215", background: "none", border: "none", cursor: "pointer" }}>
+            Verwijderen
+          </button>
+        </div>
+      )}
+
       <div className="card">
         {/* Meta row */}
         <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
           <div className="flex flex-wrap gap-4 items-end">
             <div>
               <label className="block text-xs mb-1.5 tracking-wide uppercase" style={{ color: "var(--text-muted)", fontSize: "11px" }}>Week</label>
-              <select
-                value={week}
-                onChange={e => setWeek(e.target.value)}
-                className="input-brand"
-                style={{ minWidth: 180 }}
-              >
+              <select value={week} onChange={e => setWeek(e.target.value)} className="input-brand" style={{ minWidth: 180 }}>
                 {weekOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -107,14 +162,12 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
             </div>
             <div>
               <label className="block text-xs mb-1.5 tracking-wide uppercase" style={{ color: "var(--text-muted)", fontSize: "11px" }}>Paraaf</label>
-              <input
-                type="text"
-                value={paraaf}
-                onChange={e => setParaaf(e.target.value)}
-                placeholder="initialen"
-                className="input-brand"
-                style={{ width: 100 }}
-              />
+              <input type="text" value={paraaf} onChange={e => setParaaf(e.target.value)}
+                placeholder="initialen" className="input-brand" style={{ width: 100 }} />
+            </div>
+            <div className="ml-auto self-center text-sm">
+              <span className="font-semibold" style={{ color: allMeasurementsFilled ? "var(--sage-dark)" : "var(--text)" }}>{filledCount}</span>
+              <span style={{ color: "var(--text-muted)" }}>/{totalRequired} metingen ingevuld</span>
             </div>
           </div>
         </div>
@@ -203,9 +256,20 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
         </div>
 
         {/* Actions */}
-        <div className="px-5 py-4 flex flex-wrap gap-3" style={{ borderTop: "1px solid var(--border)" }}>
-          <button onClick={saveReport} className="btn-primary">Opslaan als rapport</button>
+        <div className="px-5 py-4 flex flex-wrap items-center gap-3" style={{ borderTop: "1px solid var(--border)" }}>
+          <button onClick={saveReport} disabled={!isComplete}
+            className="btn-primary"
+            style={{ opacity: isComplete ? 1 : 0.45, cursor: isComplete ? "pointer" : "not-allowed" }}
+            title={isComplete ? "" : "Vul eerst alle metingen + paraaf in"}>
+            Opslaan als rapport
+          </button>
+          <button onClick={saveDraftNow} className="btn-secondary">Tussentijds opslaan</button>
           <button onClick={() => { if (!tempReports.length) { onToast("Geen rapporten."); return; } exportAllTempCSV(tempReports); onToast("CSV gedownload"); }} className="btn-secondary">CSV exporteren</button>
+          {!isComplete && (
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Nog {totalRequired - filledCount} meting{totalRequired - filledCount === 1 ? "" : "en"} en{paraaf.trim() ? "" : " een paraaf"} nodig om als rapport op te slaan
+            </span>
+          )}
         </div>
       </div>
     </div>
