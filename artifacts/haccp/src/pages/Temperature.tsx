@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { OBJECTS, TempRow, TempReport, statusForTemp, worstStatus, uid, todayDate, nowTime, Status } from "../lib/data";
 import { isoWeekNumber } from "../lib/schedule";
 import { Badge } from "../components/Badge";
-import { exportAllTempCSV } from "../lib/pdf";
 import { apiGetDraft, apiPutDraft, apiDeleteDraft } from "../lib/api";
 
 const TEMP_DRAFT_KEY = "temp";
@@ -373,7 +372,6 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
             style={{ opacity: draftBusy ? 0.5 : 1 }}>
             {draftBusy ? "Bezig…" : "Tussentijds opslaan"}
           </button>
-          <button onClick={() => { if (!tempReports.length) { onToast("Geen rapporten."); return; } exportAllTempCSV(tempReports); onToast("CSV gedownload"); }} className="btn-secondary">CSV exporteren</button>
           {!isComplete && (
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               Nog {totalRequired - filledCount} meting{totalRequired - filledCount === 1 ? "" : "en"} en{paraaf.trim() ? "" : " een paraaf"} nodig om als rapport op te slaan
