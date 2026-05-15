@@ -6,11 +6,50 @@ import {
 
 /* ────────── CSV parsing (RFC-4180 style) ────────── */
 
-/** Parse CSV text into rows of fields. Handles quoted fields, embedded commas,
- *  doubled-quote escaping, CRLF/LF, and a leading UTF-8 BOM. */
+/** Detect the most likely field delimiter (",", ";", or tab) from the header line.
+ *  Many Excel/Numbers exports in NL/BE locale use ";" instead of ",". */
+function detectDelimiter(text: string): "," | ";" | "\t" {
+  // Look at the first non-empty, non-quoted-only line
+  let inQuotes = false;
+  let line = "";
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQuotes && text[i + 1] === '"') { line += '""'; i++; continue; }
+      inQuotes = !inQuotes; line += c; continue;
+    }
+    if (!inQuotes && (c === "\n" || c === "\r")) {
+      if (line.trim().length) break;
+      line = "";
+      continue;
+    }
+    line += c;
+  }
+  // Count occurrences of each candidate, ignoring those inside quotes
+  const count = (delim: string) => {
+    let n = 0; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (q && line[i + 1] === '"') { i++; continue; } q = !q; }
+      else if (!q && c === delim) n++;
+    }
+    return n;
+  };
+  const semi = count(";");
+  const comma = count(",");
+  const tab = count("\t");
+  if (semi > comma && semi >= tab) return ";";
+  if (tab > comma && tab > semi) return "\t";
+  return ",";
+}
+
+/** Parse CSV text into rows of fields. Handles quoted fields, embedded delimiters,
+ *  doubled-quote escaping, CRLF/LF, and a leading UTF-8 BOM. Auto-detects the
+ *  delimiter (comma, semicolon, or tab) from the first line. */
 export function parseCSV(text: string): string[][] {
   // Strip BOM
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const delim = detectDelimiter(text);
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -24,7 +63,7 @@ export function parseCSV(text: string): string[][] {
       } else field += c;
     } else {
       if (c === '"') inQuotes = true;
-      else if (c === ',') { row.push(field); field = ""; }
+      else if (c === delim) { row.push(field); field = ""; }
       else if (c === '\r') { /* swallow */ }
       else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
       else field += c;
