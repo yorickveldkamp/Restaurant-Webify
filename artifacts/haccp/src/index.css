@@ -1,12 +1,43 @@
 @import "tailwindcss";
 
+:root {
+  --sage: #A7B69D;
+  --sage-dark: #8fa383;
+  --beige: #D3C8BD;
+  --beige-light: #EDE8E3;
+  --taupe: #B0A795;
+  --bg: #F5F3F0;
+  --card: #FFFFFF;
+  --border: #D3C8BD;
+  --text: #1A1A1A;
+  --text-muted: #7a7268;
+  --danger: #a83232;
+  --danger-bg: #fdf0f0;
+}
+
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
+
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: 'Jost', sans-serif;
+    font-size: 15px;
+    background-color: var(--bg);
+    color: var(--text);
     -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Jost', sans-serif;
+    font-weight: 600;
+  }
+
+  input, select, textarea, button {
+    font-family: 'Jost', sans-serif;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
   }
 }
 
@@ -15,7 +46,86 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .font-display {
+    font-family: 'Amatic SC', cursive;
   }
+
+  .input-brand {
+    background: #E8E8E8;
+    border: none;
+    border-radius: 0;
+    padding: 0.5rem 0.625rem;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: box-shadow 0.15s;
+  }
+  .input-brand:focus {
+    box-shadow: inset 0 0 0 2px var(--sage);
+  }
+
+  .btn-primary {
+    background: var(--sage);
+    color: var(--text);
+    border: none;
+    border-radius: 0;
+    padding: 0.5rem 1.25rem;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary:hover { background: var(--sage-dark); }
+
+  .btn-secondary {
+    background: var(--beige-light);
+    color: var(--text);
+    border: 1px solid var(--beige);
+    border-radius: 0;
+    padding: 0.5rem 1rem;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-secondary:hover { background: var(--beige); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid #e0b4b4;
+    border-radius: 0;
+    padding: 0.4rem 0.875rem;
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-danger:hover { background: var(--danger-bg); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0;
+  }
+
+  .badge-ok   { background: #ddebd5; color: #2d5a1b; font-size: 11px; padding: 2px 8px; font-weight: 500; letter-spacing: 0.02em; }
+  .badge-warn { background: #ede5d4; color: #6b4a1a; font-size: 11px; padding: 2px 8px; font-weight: 500; letter-spacing: 0.02em; }
+  .badge-nok  { background: #f5dada; color: #8c1f1f; font-size: 11px; padding: 2px 8px; font-weight: 500; letter-spacing: 0.02em; }
+  .badge-grey { background: var(--beige-light); color: var(--text-muted); font-size: 11px; padding: 2px 8px; }
 }

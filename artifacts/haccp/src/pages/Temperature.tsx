@@ -1,148 +1,162 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { OBJECTS, TempRow, TempReport, statusForTemp, worstStatus, uid, todayDate, nowTime, Status } from "../lib/data";
+import { isoWeekNumber } from "../lib/schedule";
 import { Badge } from "../components/Badge";
 import { exportAllTempCSV } from "../lib/pdf";
 
-interface TemperatureProps {
+interface Props {
   tempReports: TempReport[];
-  onSave: (report: TempReport) => void;
+  onSave: (r: TempReport) => void;
   onToast: (msg: string) => void;
 }
 
 type Measurements = Record<string, { m1: string; m2: string; m3: string; maatregel: string }>;
 
-function initMeasurements(): Measurements {
+function initM(): Measurements {
   const m: Measurements = {};
-  OBJECTS.forEach((o) => { m[o.id] = { m1: "", m2: "", m3: "", maatregel: "" }; });
+  OBJECTS.forEach(o => { m[o.id] = { m1: "", m2: "", m3: "", maatregel: "" }; });
   return m;
 }
 
-export function Temperature({ tempReports, onSave, onToast }: TemperatureProps) {
-  const [week, setWeek] = useState("");
-  const [paraaf, setParaaf] = useState("");
-  const [measurements, setMeasurements] = useState<Measurements>(initMeasurements);
+/** Generate last 52 weeks + next 4 weeks as "Week X – YYYY" */
+function buildWeekOptions(): { label: string; value: string }[] {
+  const options: { label: string; value: string }[] = [];
+  const now = new Date();
+  // Start 4 weeks in the future, go back 55 weeks
+  for (let offset = 4; offset >= -51; offset--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + offset * 7);
+    const week = isoWeekNumber(d);
+    const year = d.getFullYear();
+    // Correct year for week 1 in late December
+    const label = `Week ${week} – ${year}`;
+    if (!options.find(o => o.value === label)) {
+      options.push({ label, value: label });
+    }
+  }
+  return options;
+}
 
-  const updateMeasurement = (id: string, field: "m1" | "m2" | "m3" | "maatregel", value: string) => {
-    setMeasurements((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
-  };
+export function Temperature({ tempReports, onSave, onToast }: Props) {
+  const weekOptions = useMemo(buildWeekOptions, []);
+  const defaultWeek = `Week ${isoWeekNumber(new Date())} – ${new Date().getFullYear()}`;
+
+  const [week, setWeek] = useState(defaultWeek);
+  const [paraaf, setParaaf] = useState("");
+  const [measurements, setMeasurements] = useState<Measurements>(initM);
+
+  const update = (id: string, field: "m1" | "m2" | "m3" | "maatregel", value: string) =>
+    setMeasurements(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
 
   const getRowStatus = (id: string): Status => {
-    const obj = OBJECTS.find((o) => o.id === id)!;
-    const vals = [measurements[id].m1, measurements[id].m2, measurements[id].m3].filter((v) => v !== "");
-    const statuses = vals.map((v) => statusForTemp(v, obj.type));
-    return worstStatus(statuses);
+    const obj = OBJECTS.find(o => o.id === id)!;
+    const vals = [measurements[id].m1, measurements[id].m2, measurements[id].m3].filter(v => v !== "");
+    return worstStatus(vals.map(v => statusForTemp(v, obj.type)));
   };
 
   const saveReport = () => {
-    if (!week.trim()) { onToast("Vul het weeknummer in voor je opslaat."); return; }
+    if (!week.trim()) { onToast("Selecteer een week."); return; }
     const rows: TempRow[] = [];
     let anyData = false;
-    OBJECTS.forEach((obj) => {
+    OBJECTS.forEach(obj => {
       const { m1, m2, m3, maatregel } = measurements[obj.id];
-      const vals = [m1, m2, m3].filter((v) => v !== "");
-      if (!vals.length) {
-        rows.push({ object: obj.label, type: obj.type, m1: "", m2: "", m3: "", avg: "", status: null, maatregel });
-        return;
-      }
+      const vals = [m1, m2, m3].filter(v => v !== "");
+      if (!vals.length) { rows.push({ object: obj.label, type: obj.type, m1: "", m2: "", m3: "", avg: "", status: null, maatregel }); return; }
       anyData = true;
-      const statuses = vals.map((v) => statusForTemp(v, obj.type));
+      const statuses = vals.map(v => statusForTemp(v, obj.type));
       const ws = worstStatus(statuses);
       const avg = vals.reduce((a, b) => a + parseFloat(b), 0) / vals.length;
       rows.push({ object: obj.label, type: obj.type, m1, m2, m3, avg: avg.toFixed(1), status: ws, maatregel });
     });
     if (!anyData) { onToast("Voer eerst metingen in."); return; }
-    const allStatuses = rows.map((r) => r.status).filter(Boolean) as Status[];
-    const ws = worstStatus(allStatuses);
-    const report: TempReport = { id: uid(), week, paraaf, date: todayDate(), time: nowTime(), rows, overallStatus: ws, type: "temp" };
-    onSave(report);
+    const allStatuses = rows.map(r => r.status).filter(Boolean) as Status[];
+    onSave({ id: uid(), week, paraaf, date: todayDate(), time: nowTime(), rows, overallStatus: worstStatus(allStatuses), type: "temp" });
     onToast(`Rapport "${week}" opgeslagen`);
-    setMeasurements(initMeasurements());
-    setWeek("");
+    setMeasurements(initM());
     setParaaf("");
   };
 
+  const inputCls = "input-brand w-full";
   let lastType = "";
 
   return (
-    <div>
-      <div className="bg-gray-100 rounded-lg px-3 py-2.5 mb-4 text-xs text-gray-600">
-        <strong>Koeling:</strong> max 7,0°C | afkeur: 7,1°C en hoger &nbsp;
-        <strong>Diepvries:</strong> max -18,0°C | afkeur: -17,9°C en warmer
+    <div className="space-y-4">
+      {/* Norm info */}
+      <div className="px-4 py-3 text-xs" style={{ background: "var(--beige-light)", borderLeft: "3px solid var(--sage)", color: "var(--text-muted)" }}>
+        <strong style={{ color: "var(--text)" }}>Koeling:</strong> max 7,0°C | afkeur ≥ 7,1°C &nbsp;·&nbsp;
+        <strong style={{ color: "var(--text)" }}>Diepvries:</strong> max −18,0°C | afkeur ≥ −17,9°C
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
-        <div className="flex flex-wrap gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-500 whitespace-nowrap">📅 Week + jaar:</label>
-            <input
-              type="text"
-              value={week}
-              onChange={(e) => setWeek(e.target.value)}
-              placeholder="bv. week 21 – 2026"
-              className="border border-gray-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 w-36"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-500">Paraaf:</label>
-            <input
-              type="text"
-              value={paraaf}
-              onChange={(e) => setParaaf(e.target.value)}
-              placeholder="initialen"
-              className="border border-gray-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 w-20"
-            />
+      <div className="card">
+        {/* Meta row */}
+        <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+          <div className="flex flex-wrap gap-4 items-end">
+            <div>
+              <label className="block text-xs mb-1.5 tracking-wide uppercase" style={{ color: "var(--text-muted)", fontSize: "11px" }}>Week</label>
+              <select
+                value={week}
+                onChange={e => setWeek(e.target.value)}
+                className="input-brand"
+                style={{ minWidth: 180 }}
+              >
+                {weekOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5 tracking-wide uppercase" style={{ color: "var(--text-muted)", fontSize: "11px" }}>Paraaf</label>
+              <input
+                type="text"
+                value={paraaf}
+                onChange={e => setParaaf(e.target.value)}
+                placeholder="initialen"
+                className="input-brand"
+                style={{ width: 100 }}
+              />
+            </div>
           </div>
         </div>
 
         {/* Desktop table */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full border-collapse" style={{ fontSize: 13 }}>
             <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-44">Object</th>
-                <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-20">1e meting</th>
-                <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-20">2e meting</th>
-                <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-20">3e meting</th>
-                <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-20">Status</th>
-                <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200">Corrigerende maatregel</th>
+              <tr style={{ background: "var(--beige-light)" }}>
+                {["Object", "1e meting", "2e meting", "3e meting", "Status", "Corrigerende maatregel"].map(h => (
+                  <th key={h} className="text-left px-3 py-2.5 font-medium" style={{ fontSize: 11, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {OBJECTS.map((obj) => {
-                const showDivider = obj.type !== lastType;
-                if (showDivider) lastType = obj.type;
-                const rowStatus = getRowStatus(obj.id);
+              {OBJECTS.map(obj => {
+                const divider = obj.type !== lastType;
+                if (divider) lastType = obj.type;
                 return [
-                  showDivider && (
+                  divider && (
                     <tr key={`div-${obj.type}`}>
-                      <td colSpan={6} className="bg-gray-50 text-xs font-medium text-gray-500 px-2 py-1.5 tracking-wide uppercase">
-                        {obj.type === "koeling" ? "Koeling — norm max 7,0°C" : "Diepvries — norm max -18,0°C"}
+                      <td colSpan={6} className="px-3 py-2 text-xs font-semibold tracking-wider uppercase"
+                        style={{ background: "var(--beige-light)", color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>
+                        {obj.type === "koeling" ? "▸ Koeling — max 7,0°C" : "▸ Diepvries — max −18,0°C"}
                       </td>
                     </tr>
                   ),
-                  <tr key={obj.id} className="border-b border-gray-100 last:border-0">
-                    <td className="px-2 py-2 text-xs text-gray-900">{obj.label}</td>
-                    {(["m1", "m2", "m3"] as const).map((m) => (
-                      <td key={m} className="px-2 py-2">
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={measurements[obj.id][m]}
-                          onChange={(e) => updateMeasurement(obj.id, m, e.target.value)}
-                          placeholder="°C"
-                          className="border border-gray-200 rounded px-1.5 py-1 text-xs w-16 text-center focus:outline-none focus:ring-1 focus:ring-gray-400"
-                        />
+                  <tr key={obj.id} style={{ borderBottom: "1px solid var(--beige-light)" }}>
+                    <td className="px-3 py-2.5 text-sm font-medium" style={{ color: "var(--text)", width: 170 }}>{obj.label}</td>
+                    {(["m1", "m2", "m3"] as const).map(m => (
+                      <td key={m} className="px-3 py-2" style={{ width: 90 }}>
+                        <input type="number" step="0.1" value={measurements[obj.id][m]}
+                          onChange={e => update(obj.id, m, e.target.value)}
+                          placeholder="°C" className="input-brand text-center" style={{ width: 72 }} />
                       </td>
                     ))}
-                    <td className="px-2 py-2"><Badge status={rowStatus} /></td>
-                    <td className="px-2 py-2">
-                      <input
-                        type="text"
-                        value={measurements[obj.id].maatregel}
-                        onChange={(e) => updateMeasurement(obj.id, "maatregel", e.target.value)}
-                        placeholder="indien nodig"
-                        className="border border-gray-200 rounded px-1.5 py-1 text-xs w-full focus:outline-none focus:ring-1 focus:ring-gray-400"
-                      />
+                    <td className="px-3 py-2.5" style={{ width: 80 }}><Badge status={getRowStatus(obj.id)} /></td>
+                    <td className="px-3 py-2">
+                      <input type="text" value={measurements[obj.id].maatregel}
+                        onChange={e => update(obj.id, "maatregel", e.target.value)}
+                        placeholder="indien nodig" className={inputCls} />
                     </td>
                   </tr>,
                 ];
@@ -152,64 +166,45 @@ export function Temperature({ tempReports, onSave, onToast }: TemperatureProps) 
         </div>
 
         {/* Mobile cards */}
-        <div className="md:hidden space-y-3">
+        <div className="md:hidden divide-y" style={{ borderTop: "1px solid var(--border)" }}>
           {OBJECTS.map((obj, idx) => {
-            const prevType = idx > 0 ? OBJECTS[idx - 1].type : "";
-            const showDivider = obj.type !== prevType;
-            const rowStatus = getRowStatus(obj.id);
+            const divider = idx === 0 || obj.type !== OBJECTS[idx - 1].type;
             return (
               <div key={obj.id}>
-                {showDivider && (
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 px-2 py-1.5 rounded -mx-0 mb-2">
-                    {obj.type === "koeling" ? "Koeling — norm max 7,0°C" : "Diepvries — norm max -18,0°C"}
+                {divider && (
+                  <div className="px-4 py-2 text-xs font-semibold tracking-wider uppercase"
+                    style={{ background: "var(--beige-light)", color: "var(--text-muted)" }}>
+                    {obj.type === "koeling" ? "Koeling — max 7,0°C" : "Diepvries — max −18,0°C"}
                   </div>
                 )}
-                <div className="border border-gray-200 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-900">{obj.label}</span>
-                    <Badge status={rowStatus} />
+                <div className="px-4 py-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{obj.label}</span>
+                    <Badge status={getRowStatus(obj.id)} />
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mb-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {(["m1", "m2", "m3"] as const).map((m, i) => (
                       <div key={m}>
-                        <label className="text-xs text-gray-400 block mb-0.5">{i + 1}e meting</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={measurements[obj.id][m]}
-                          onChange={(e) => updateMeasurement(obj.id, m, e.target.value)}
-                          placeholder="°C"
-                          className="border border-gray-200 rounded px-2 py-1.5 text-sm w-full text-center focus:outline-none focus:ring-1 focus:ring-gray-400"
-                        />
+                        <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>{i + 1}e meting</label>
+                        <input type="number" step="0.1" value={measurements[obj.id][m]}
+                          onChange={e => update(obj.id, m, e.target.value)}
+                          placeholder="°C" className="input-brand text-center w-full" />
                       </div>
                     ))}
                   </div>
-                  <input
-                    type="text"
-                    value={measurements[obj.id].maatregel}
-                    onChange={(e) => updateMeasurement(obj.id, "maatregel", e.target.value)}
-                    placeholder="Corrigerende maatregel (indien nodig)"
-                    className="border border-gray-200 rounded px-2 py-1.5 text-xs w-full focus:outline-none focus:ring-1 focus:ring-gray-400"
-                  />
+                  <input type="text" value={measurements[obj.id].maatregel}
+                    onChange={e => update(obj.id, "maatregel", e.target.value)}
+                    placeholder="Corrigerende maatregel (indien nodig)" className="input-brand w-full" />
                 </div>
               </div>
             );
           })}
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-4">
-          <button
-            onClick={saveReport}
-            className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors flex items-center gap-1.5"
-          >
-            💾 Opslaan als rapport
-          </button>
-          <button
-            onClick={() => { if (!tempReports.length) { onToast("Geen rapporten om te exporteren."); return; } exportAllTempCSV(tempReports); onToast("CSV gedownload"); }}
-            className="px-3 py-2 border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-          >
-            📊 CSV
-          </button>
+        {/* Actions */}
+        <div className="px-5 py-4 flex flex-wrap gap-3" style={{ borderTop: "1px solid var(--border)" }}>
+          <button onClick={saveReport} className="btn-primary">Opslaan als rapport</button>
+          <button onClick={() => { if (!tempReports.length) { onToast("Geen rapporten."); return; } exportAllTempCSV(tempReports); onToast("CSV gedownload"); }} className="btn-secondary">CSV exporteren</button>
         </div>
       </div>
     </div>

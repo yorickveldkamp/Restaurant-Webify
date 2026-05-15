@@ -2,234 +2,136 @@ import { useState } from "react";
 import { TempReport, CleanReport, statusLabel } from "../lib/data";
 import { downloadTempReport, downloadCleanReport, exportAllTempCSV, exportAllCleanCSV, downloadMonthlyOverview } from "../lib/pdf";
 
-interface ReportsProps {
+interface Props {
   tempReports: TempReport[];
   cleanReports: CleanReport[];
   onDeleteTemp: (id: string) => void;
   onDeleteClean: (id: string) => void;
   onToast: (msg: string) => void;
 }
-
 type Tab = "temp" | "clean" | "maand";
 
-function MonthlyOverview({ tempReports, cleanReports, onToast }: {
-  tempReports: TempReport[];
-  cleanReports: CleanReport[];
-  onToast: (msg: string) => void;
-}) {
+function MonthlyPanel({ tempReports, cleanReports, onToast }: { tempReports: TempReport[]; cleanReports: CleanReport[]; onToast: (m: string) => void }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
-
-  /** Parse "dd/mm/yyyy" → { month, year } */
-  function parseDutchDate(s: string) {
-    const parts = s.split("/");
-    if (parts.length !== 3) return null;
-    return { month: parseInt(parts[1], 10), year: parseInt(parts[2], 10) };
-  }
-
-  const filteredTemp = tempReports.filter((r) => {
-    const d = parseDutchDate(r.date);
-    return d && d.month === month && d.year === year;
-  });
-  const filteredClean = cleanReports.filter((r) => {
-    const d = parseDutchDate(r.datum);
-    return d && d.month === month && d.year === year;
-  });
-
-  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("nl-BE", { month: "long", year: "numeric" });
-  const total = filteredTemp.length + filteredClean.length;
-
-  const handleExport = () => {
-    if (total === 0) { onToast("Geen rapporten voor deze maand."); return; }
-    downloadMonthlyOverview(month, year, tempReports, cleanReports);
-    onToast("Maandoverzicht PDF gedownload");
-  };
-
-  const months = [
-    "Januari", "Februari", "Maart", "April", "Mei", "Juni",
-    "Juli", "Augustus", "September", "Oktober", "November", "December",
-  ];
-
+  const months = ["Januari","Februari","Maart","April","Mei","Juni","Juli","Augustus","September","Oktober","November","December"];
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
-
-  const nokTemp = filteredTemp.filter((r) => r.overallStatus === "nok").length;
-  const warnTemp = filteredTemp.filter((r) => r.overallStatus === "warn").length;
-  const doneClean = filteredClean.filter((r) => r.overallStatus === "ok").length;
-
+  const parse = (s: string) => { const p = s.split("/"); return p.length === 3 ? { m: parseInt(p[1]), y: parseInt(p[2]) } : null; };
+  const fT = tempReports.filter(r => { const d = parse(r.date); return d && d.m === month && d.y === year; });
+  const fC = cleanReports.filter(r => { const d = parse(r.datum); return d && d.m === month && d.y === year; });
+  const total = fT.length + fC.length;
+  const monthLabel = new Date(year, month - 1).toLocaleDateString("nl-BE", { month: "long", year: "numeric" });
+  const nokT = fT.filter(r => r.overallStatus === "nok").length;
+  const warnT = fT.filter(r => r.overallStatus === "warn").length;
+  const doneC = fC.filter(r => r.overallStatus === "ok").length;
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
-      <h2 className="text-sm font-medium text-gray-900 mb-4">📋 Maandoverzicht PDF</h2>
-
-      {/* Month/year selectors */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">Maand</label>
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            className="border border-gray-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white"
-          >
-            {months.map((m, i) => (
-              <option key={i} value={i + 1}>{m}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">Jaar</label>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="border border-gray-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+    <div className="card">
+      <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+        <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>Selecteer periode</div>
+        <div className="flex flex-wrap gap-3">
+          <div>
+            <label className="block text-xs mb-1.5 uppercase tracking-wide" style={{ color: "var(--text-muted)", fontSize: 11 }}>Maand</label>
+            <select value={month} onChange={e => setMonth(Number(e.target.value))} className="input-brand" style={{ minWidth: 140 }}>
+              {months.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs mb-1.5 uppercase tracking-wide" style={{ color: "var(--text-muted)", fontSize: 11 }}>Jaar</label>
+            <select value={year} onChange={e => setYear(Number(e.target.value))} className="input-brand">
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
         </div>
       </div>
-
-      {/* Preview card */}
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
-        <div className="text-sm font-medium text-gray-700 mb-3 capitalize">
-          {monthLabel}
-        </div>
+      <div className="px-5 py-5">
+        <div className="text-sm font-semibold mb-4 capitalize" style={{ color: "var(--text)" }}>{monthLabel}</div>
         {total === 0 ? (
-          <p className="text-sm text-gray-400 italic">Geen rapporten gevonden voor deze maand.</p>
+          <div className="text-sm italic py-2" style={{ color: "var(--text-muted)" }}>Geen rapporten gevonden voor deze maand.</div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3 mb-5">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">🌡️ Temperatuurrapporten</span>
+              <span style={{ color: "var(--text-muted)" }}>Temperatuurrapporten</span>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900">{filteredTemp.length}</span>
-                {nokTemp > 0 && <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[#FCEBEB] text-[#791F1F]">{nokTemp} NOK</span>}
-                {warnTemp > 0 && <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[#FAEEDA] text-[#633806]">{warnTemp} let op</span>}
-                {filteredTemp.length > 0 && nokTemp === 0 && warnTemp === 0 && <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[#EAF3DE] text-[#27500A]">Alles OK</span>}
+                <span className="font-semibold">{fT.length}</span>
+                {nokT > 0 && <span className="badge-nok">{nokT} NOK</span>}
+                {warnT > 0 && <span className="badge-warn">{warnT} let op</span>}
+                {fT.length > 0 && !nokT && !warnT && <span className="badge-ok">Alles OK</span>}
               </div>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">🧹 Reinigingsrapporten</span>
+              <span style={{ color: "var(--text-muted)" }}>Reinigingsrapporten</span>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900">{filteredClean.length}</span>
-                {filteredClean.length > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${doneClean === filteredClean.length ? "bg-[#EAF3DE] text-[#27500A]" : "bg-[#FAEEDA] text-[#633806]"}`}>
-                    {doneClean}/{filteredClean.length} volledig
-                  </span>
-                )}
+                <span className="font-semibold">{fC.length}</span>
+                {fC.length > 0 && <span className={doneC === fC.length ? "badge-ok" : "badge-warn"}>{doneC}/{fC.length} volledig</span>}
               </div>
             </div>
-            <div className="border-t border-gray-200 pt-2 mt-2 flex items-center justify-between text-xs text-gray-500">
-              <span>Totaal rapporten in overzicht</span>
-              <span className="font-medium text-gray-900">{total}</span>
+            <div className="flex items-center justify-between text-xs pt-2" style={{ borderTop: "1px solid var(--border)", color: "var(--text-muted)" }}>
+              <span>Totaal rapporten</span>
+              <span className="font-semibold" style={{ color: "var(--text)" }}>{total}</span>
             </div>
           </div>
         )}
+        <button
+          onClick={() => { if (!total) { onToast("Geen rapporten voor deze maand."); return; } downloadMonthlyOverview(month, year, tempReports, cleanReports); onToast("Maandoverzicht PDF gedownload"); }}
+          className={total === 0 ? "btn-secondary opacity-50 cursor-not-allowed" : "btn-primary"}
+          disabled={total === 0}
+        >
+          Maandoverzicht downloaden
+        </button>
       </div>
-
-      <button
-        onClick={handleExport}
-        disabled={total === 0}
-        className={`w-full sm:w-auto px-5 py-2.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-          total === 0
-            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-            : "bg-gray-900 text-white hover:bg-gray-700"
-        }`}
-      >
-        📄 Maandoverzicht downloaden
-      </button>
     </div>
   );
 }
 
-export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean, onToast }: ReportsProps) {
+export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean, onToast }: Props) {
   const [tab, setTab] = useState<Tab>("temp");
+  const tabs: { key: Tab; label: string }[] = [{ key: "temp", label: "Temperatuur" }, { key: "clean", label: "Reiniging" }, { key: "maand", label: "Maandoverzicht" }];
 
-  const handleDeleteTemp = (id: string) => {
-    if (window.confirm("Dit rapport permanent verwijderen?")) {
-      onDeleteTemp(id);
-      onToast("Rapport verwijderd");
-    }
-  };
-  const handleDeleteClean = (id: string) => {
-    if (window.confirm("Dit rapport permanent verwijderen?")) {
-      onDeleteClean(id);
-      onToast("Rapport verwijderd");
-    }
-  };
-
-  const viewTemp = (r: TempReport) => {
-    const lines = r.rows
-      .filter((row) => row.avg)
-      .map((row) => `${row.object}: gem. ${row.avg}°C (${statusLabel(row.status)})${row.maatregel ? " – " + row.maatregel : ""}`)
-      .join("\n");
-    alert(`Rapport: ${r.week}\nDatum: ${r.date} | Paraaf: ${r.paraaf || "—"}\n\n${lines || "Geen metingen"}`);
-  };
-
-  const viewClean = (r: CleanReport) => {
-    const lines = r.rows.map((row) => `${row.checked ? "✓" : "✗"} ${row.task}${row.note ? " – " + row.note : ""}`).join("\n");
-    alert(`${r.freq.charAt(0).toUpperCase() + r.freq.slice(1)} – ${r.datum}\nUitgevoerd door: ${r.door || "—"}\n\n${lines}`);
-  };
-
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: "temp", label: "Temperatuur", icon: "🌡️" },
-    { key: "clean", label: "Reiniging", icon: "🧹" },
-    { key: "maand", label: "Maandoverzicht", icon: "📋" },
-  ];
+  const delT = (id: string) => { if (confirm("Verwijderen?")) { onDeleteTemp(id); onToast("Rapport verwijderd"); } };
+  const delC = (id: string) => { if (confirm("Verwijderen?")) { onDeleteClean(id); onToast("Rapport verwijderd"); } };
+  const viewT = (r: TempReport) => alert(`${r.week}\n${r.date} | Paraaf: ${r.paraaf || "—"}\n\n` + r.rows.filter(row => row.avg).map(row => `${row.object}: ${row.avg}°C (${statusLabel(row.status)})${row.maatregel ? " – " + row.maatregel : ""}`).join("\n"));
+  const viewC = (r: CleanReport) => alert(`${r.freq} – ${r.datum}\nDoor: ${r.door || "—"}\n\n` + r.rows.map(row => `${row.checked ? "✓" : "✗"} ${row.task}${row.note ? " – " + row.note : ""}`).join("\n"));
 
   return (
-    <div>
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-1.5 rounded-md border text-sm transition-all ${
-              tab === t.key
-                ? "bg-gray-100 border-gray-400 text-gray-900 font-medium"
-                : "bg-transparent text-gray-600 border-gray-200 hover:bg-gray-50"
-            }`}
-          >
-            {t.icon} {t.label}
+    <div className="space-y-4">
+      <div className="flex gap-0" style={{ borderBottom: "1px solid var(--border)" }}>
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className="px-5 py-2.5 text-sm transition-all"
+            style={{ background: tab === t.key ? "var(--sage)" : "transparent", color: tab === t.key ? "white" : "var(--text-muted)", fontWeight: tab === t.key ? 500 : 400, border: "none", cursor: "pointer" }}>
+            {t.label}
           </button>
         ))}
       </div>
 
       {tab === "temp" && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <h2 className="text-sm font-medium text-gray-900">🌡️ Temperatuurrapporten per week</h2>
-            <button
-              onClick={() => { if (!tempReports.length) { onToast("Geen rapporten om te exporteren."); return; } exportAllTempCSV(tempReports); onToast("CSV gedownload"); }}
-              className="px-3 py-1.5 border border-gray-200 rounded-md text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              📊 Alles als CSV
-            </button>
+        <div className="card overflow-hidden">
+          <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+            <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Temperatuurrapporten per week</span>
+            <button onClick={() => { if (!tempReports.length) { onToast("Geen rapporten."); return; } exportAllTempCSV(tempReports); onToast("CSV gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">CSV exporteren</button>
           </div>
-          {tempReports.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-6">Nog geen temperatuurrapporten opgeslagen</p>
-          ) : (
-            <div className="space-y-3">
-              {tempReports.map((r) => {
-                const nokCount = r.rows.filter((row) => row.status === "nok").length;
-                const warnCount = r.rows.filter((row) => row.status === "warn").length;
-                const measCount = r.rows.filter((row) => row.avg).length;
+          {tempReports.length === 0 ? <div className="px-5 py-8 text-center text-sm italic" style={{ color: "var(--text-muted)" }}>Nog geen temperatuurrapporten opgeslagen</div> : (
+            <div>
+              {tempReports.map((r, i) => {
+                const nokCount = r.rows.filter(row => row.status === "nok").length;
+                const warnCount = r.rows.filter(row => row.status === "warn").length;
                 return (
-                  <div key={r.id} className="border border-gray-100 rounded-lg p-3 flex flex-wrap items-start justify-between gap-3">
+                  <div key={r.id} className="px-5 py-4 flex flex-wrap items-start justify-between gap-3"
+                    style={{ borderBottom: i < tempReports.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900">🌡️ {r.week}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {measCount} objecten · {r.date} om {r.time}{r.paraaf ? ` · paraaf: ${r.paraaf}` : ""}
-                      </div>
+                      <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{r.week}</div>
+                      <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{r.rows.filter(row => row.avg).length} obj · {r.date} {r.time}{r.paraaf ? ` · ${r.paraaf}` : ""}</div>
                       <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                        {nokCount > 0 && <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-[#FCEBEB] text-[#791F1F]">{nokCount} NOK</span>}
-                        {warnCount > 0 && <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-[#FAEEDA] text-[#633806]">{warnCount} let op</span>}
-                        {!nokCount && !warnCount && <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-[#EAF3DE] text-[#27500A]">Alles OK</span>}
+                        {nokCount > 0 && <span className="badge-nok">{nokCount} NOK</span>}
+                        {warnCount > 0 && <span className="badge-warn">{warnCount} let op</span>}
+                        {!nokCount && !warnCount && <span className="badge-ok">Alles OK</span>}
                       </div>
                     </div>
-                    <div className="flex gap-1.5 flex-wrap">
-                      <button onClick={() => viewTemp(r)} className="px-2.5 py-1.5 border border-gray-200 rounded-md text-xs text-gray-600 hover:bg-gray-50 transition-colors">👁️ Bekijken</button>
-                      <button onClick={() => { downloadTempReport(r); onToast("PDF gedownload"); }} className="px-2.5 py-1.5 border border-gray-200 rounded-md text-xs text-gray-600 hover:bg-gray-50 transition-colors">📄 PDF</button>
-                      <button onClick={() => handleDeleteTemp(r.id)} className="px-2.5 py-1.5 border border-red-200 rounded-md text-xs text-red-600 hover:bg-red-50 transition-colors">🗑️</button>
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => viewT(r)} className="btn-secondary text-xs py-1.5 px-3">Bekijken</button>
+                      <button onClick={() => { downloadTempReport(r); onToast("PDF gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">PDF</button>
+                      <button onClick={() => delT(r.id)} className="btn-danger text-xs py-1.5 px-3">✕</button>
                     </div>
                   </div>
                 );
@@ -240,39 +142,30 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
       )}
 
       {tab === "clean" && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <h2 className="text-sm font-medium text-gray-900">🧹 Reinigingsrapporten</h2>
-            <button
-              onClick={() => { if (!cleanReports.length) { onToast("Geen rapporten om te exporteren."); return; } exportAllCleanCSV(cleanReports); onToast("CSV gedownload"); }}
-              className="px-3 py-1.5 border border-gray-200 rounded-md text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              📊 Alles als CSV
-            </button>
+        <div className="card overflow-hidden">
+          <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+            <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Reinigingsrapporten</span>
+            <button onClick={() => { if (!cleanReports.length) { onToast("Geen rapporten."); return; } exportAllCleanCSV(cleanReports); onToast("CSV gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">CSV exporteren</button>
           </div>
-          {cleanReports.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-6">Nog geen reinigingsrapporten opgeslagen</p>
-          ) : (
-            <div className="space-y-3">
-              {cleanReports.map((r) => {
-                const doneCount = r.rows.filter((row) => row.checked).length;
+          {cleanReports.length === 0 ? <div className="px-5 py-8 text-center text-sm italic" style={{ color: "var(--text-muted)" }}>Nog geen reinigingsrapporten opgeslagen</div> : (
+            <div>
+              {cleanReports.map((r, i) => {
+                const done = r.rows.filter(row => row.checked).length;
                 const total = r.rows.length;
-                const allDone = doneCount === total;
                 return (
-                  <div key={r.id} className="border border-gray-100 rounded-lg p-3 flex flex-wrap items-start justify-between gap-3">
+                  <div key={r.id} className="px-5 py-4 flex flex-wrap items-start justify-between gap-3"
+                    style={{ borderBottom: i < cleanReports.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900">🧹 {r.freq.charAt(0).toUpperCase() + r.freq.slice(1)} – {r.datum}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">Uitgevoerd door: {r.door || "—"} · om {r.time}</div>
+                      <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{r.freq.charAt(0).toUpperCase() + r.freq.slice(1)} — {r.datum}</div>
+                      <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Door: {r.door || "—"} · {r.time}</div>
                       <div className="mt-1.5">
-                        <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${allDone ? "bg-[#EAF3DE] text-[#27500A]" : "bg-[#FAEEDA] text-[#633806]"}`}>
-                          {doneCount}/{total} taken afgevinkt
-                        </span>
+                        <span className={done === total ? "badge-ok" : "badge-warn"}>{done}/{total} taken afgevinkt</span>
                       </div>
                     </div>
-                    <div className="flex gap-1.5 flex-wrap">
-                      <button onClick={() => viewClean(r)} className="px-2.5 py-1.5 border border-gray-200 rounded-md text-xs text-gray-600 hover:bg-gray-50 transition-colors">👁️ Bekijken</button>
-                      <button onClick={() => { downloadCleanReport(r); onToast("PDF gedownload"); }} className="px-2.5 py-1.5 border border-gray-200 rounded-md text-xs text-gray-600 hover:bg-gray-50 transition-colors">📄 PDF</button>
-                      <button onClick={() => handleDeleteClean(r.id)} className="px-2.5 py-1.5 border border-red-200 rounded-md text-xs text-red-600 hover:bg-red-50 transition-colors">🗑️</button>
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => viewC(r)} className="btn-secondary text-xs py-1.5 px-3">Bekijken</button>
+                      <button onClick={() => { downloadCleanReport(r); onToast("PDF gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">PDF</button>
+                      <button onClick={() => delC(r.id)} className="btn-danger text-xs py-1.5 px-3">✕</button>
                     </div>
                   </div>
                 );
@@ -282,9 +175,7 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
         </div>
       )}
 
-      {tab === "maand" && (
-        <MonthlyOverview tempReports={tempReports} cleanReports={cleanReports} onToast={onToast} />
-      )}
+      {tab === "maand" && <MonthlyPanel tempReports={tempReports} cleanReports={cleanReports} onToast={onToast} />}
     </div>
   );
 }

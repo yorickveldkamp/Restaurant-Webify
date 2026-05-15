@@ -1,10 +1,7 @@
 import { useState, useCallback } from "react";
+import logo from "@assets/logo.png";
 import { TempReport, CleanReport, todayFull } from "./lib/data";
-import {
-  loadTempReports, saveTempReports,
-  loadCleanReports, saveCleanReports,
-  clearTempReports, clearCleanReports,
-} from "./lib/storage";
+import { loadTempReports, saveTempReports, loadCleanReports, saveCleanReports, clearTempReports, clearCleanReports } from "./lib/storage";
 import { Dashboard } from "./pages/Dashboard";
 import { Temperature } from "./pages/Temperature";
 import { Cleaning } from "./pages/Cleaning";
@@ -14,16 +11,16 @@ import { Toast } from "./components/Toast";
 
 type Tab = "dashboard" | "temp" | "cleaning" | "reports" | "settings";
 
-const NAV_ITEMS: { key: Tab; label: string; icon: string }[] = [
-  { key: "dashboard", label: "Dashboard", icon: "📊" },
-  { key: "temp", label: "Temperatuur", icon: "🌡️" },
-  { key: "cleaning", label: "Reiniging", icon: "🧹" },
-  { key: "reports", label: "Rapporten", icon: "📁" },
-  { key: "settings", label: "Instellingen", icon: "⚙️" },
+const NAV: { key: Tab; label: string }[] = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "temp", label: "Temperatuur" },
+  { key: "cleaning", label: "Reiniging" },
+  { key: "reports", label: "Rapporten" },
+  { key: "settings", label: "Instellingen" },
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<Tab>("dashboard");
   const [tempReports, setTempReports] = useState<TempReport[]>(() => loadTempReports());
   const [cleanReports, setCleanReports] = useState<CleanReport[]>(() => loadCleanReports());
   const [toast, setToast] = useState("");
@@ -31,73 +28,58 @@ export default function App() {
   const showToast = useCallback((msg: string) => setToast(msg), []);
   const clearToast = useCallback(() => setToast(""), []);
 
-  const addTempReport = (report: TempReport) => {
-    const updated = [report, ...tempReports];
-    setTempReports(updated);
-    saveTempReports(updated);
-  };
-
-  const addCleanReport = (report: CleanReport) => {
-    const updated = [report, ...cleanReports];
-    setCleanReports(updated);
-    saveCleanReports(updated);
-  };
-
-  const deleteTempReport = (id: string) => {
-    const updated = tempReports.filter((r) => r.id !== id);
-    setTempReports(updated);
-    saveTempReports(updated);
-  };
-
-  const deleteCleanReport = (id: string) => {
-    const updated = cleanReports.filter((r) => r.id !== id);
-    setCleanReports(updated);
-    saveCleanReports(updated);
-  };
-
+  const addTemp = (r: TempReport) => { const u = [r, ...tempReports]; setTempReports(u); saveTempReports(u); };
+  const addClean = (r: CleanReport) => { const u = [r, ...cleanReports]; setCleanReports(u); saveCleanReports(u); };
+  const delTemp = (id: string) => { const u = tempReports.filter(r => r.id !== id); setTempReports(u); saveTempReports(u); };
+  const delClean = (id: string) => { const u = cleanReports.filter(r => r.id !== id); setCleanReports(u); saveCleanReports(u); };
   const clearData = (type: "temp" | "cleaning" | "all") => {
     if (type === "temp" || type === "all") { setTempReports([]); clearTempReports(); }
     if (type === "cleaning" || type === "all") { setCleanReports([]); clearCleanReports(); }
     showToast("Gegevens verwijderd");
   };
-
-  const navigateTo = useCallback((tab: string) => {
-    setActiveTab(tab as Tab);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+  const navigateTo = useCallback((t: string) => { setTab(t as Tab); window.scrollTo({ top: 0, behavior: "smooth" }); }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
+    <div className="min-h-screen" style={{ background: "var(--bg)", fontFamily: "'Jost', sans-serif" }}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <div className="text-base font-semibold text-gray-900 flex items-center gap-2">
-              🛡️ HACCP Beheer
-            </div>
-            <div className="text-xs text-gray-400 mt-0.5">{todayFull()}</div>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            ☁️ Opgeslagen
-          </div>
-        </div>
-
-        {/* Nav */}
+      <header className="sticky top-0 z-40" style={{ background: "var(--card)", borderBottom: "2px solid var(--sage)" }}>
         <div className="max-w-4xl mx-auto px-4">
-          <div className="flex gap-0 overflow-x-auto scrollbar-hide">
-            {NAV_ITEMS.map((item) => (
+          {/* Top bar */}
+          <div className="flex items-center justify-between py-3">
+            <div className="flex items-center gap-3">
+              <img src={logo} alt="Der Drahtesel" className="h-10 w-auto object-contain" style={{ filter: "none" }} />
+              <div>
+                <div className="font-display text-2xl leading-none" style={{ fontFamily: "'Amatic SC', cursive", fontWeight: 700, color: "var(--text)" }}>
+                  Der Drahtesel
+                </div>
+                <div className="text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)", letterSpacing: "0.12em" }}>
+                  HACCP Beheer
+                </div>
+              </div>
+            </div>
+            <div className="text-right hidden sm:block">
+              <div className="text-xs" style={{ color: "var(--text-muted)" }}>{todayFull()}</div>
+              <div className="text-xs mt-0.5" style={{ color: "var(--sage-dark)", fontSize: "11px" }}>☁ Opgeslagen</div>
+            </div>
+          </div>
+
+          {/* Nav */}
+          <div className="flex gap-0 overflow-x-auto scrollbar-hide -mb-px">
+            {NAV.map(item => (
               <button
                 key={item.key}
-                onClick={() => setActiveTab(item.key)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-sm whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === item.key
-                    ? "border-gray-900 text-gray-900 font-medium"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
+                onClick={() => setTab(item.key)}
+                className="px-4 py-2.5 text-sm whitespace-nowrap border-b-2 transition-all"
+                style={{
+                  borderBottomColor: tab === item.key ? "var(--sage)" : "transparent",
+                  color: tab === item.key ? "var(--text)" : "var(--text-muted)",
+                  fontWeight: tab === item.key ? 500 : 400,
+                  letterSpacing: "0.02em",
+                  background: "transparent",
+                  cursor: "pointer",
+                }}
               >
-                <span>{item.icon}</span>
-                <span className="hidden sm:inline">{item.label}</span>
-                <span className="sm:hidden text-xs">{item.label.split(" ")[0]}</span>
+                {item.label}
               </button>
             ))}
           </div>
@@ -105,32 +87,12 @@ export default function App() {
       </header>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-4">
-        {activeTab === "dashboard" && (
-          <Dashboard
-            tempReports={tempReports}
-            cleanReports={cleanReports}
-            onNavigate={navigateTo}
-          />
-        )}
-        {activeTab === "temp" && (
-          <Temperature tempReports={tempReports} onSave={addTempReport} onToast={showToast} />
-        )}
-        {activeTab === "cleaning" && (
-          <Cleaning onSave={addCleanReport} onToast={showToast} />
-        )}
-        {activeTab === "reports" && (
-          <Reports
-            tempReports={tempReports}
-            cleanReports={cleanReports}
-            onDeleteTemp={deleteTempReport}
-            onDeleteClean={deleteCleanReport}
-            onToast={showToast}
-          />
-        )}
-        {activeTab === "settings" && (
-          <Settings onClear={clearData} />
-        )}
+      <main className="max-w-4xl mx-auto px-4 py-5">
+        {tab === "dashboard" && <Dashboard tempReports={tempReports} cleanReports={cleanReports} onNavigate={navigateTo} />}
+        {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} />}
+        {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} />}
+        {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onToast={showToast} />}
+        {tab === "settings" && <Settings onClear={clearData} />}
       </main>
 
       {toast && <Toast message={toast} onDone={clearToast} />}
