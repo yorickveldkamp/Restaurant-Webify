@@ -76,32 +76,6 @@ export function Dashboard({ tempReports, cleanReports, onNavigate }: Props) {
         </div>
       </div>
 
-      {/* Recent log */}
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
-          <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Recente registraties</span>
-        </div>
-        {allItems.length === 0 ? (
-          <div className="px-5 py-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>Nog geen registraties</div>
-        ) : (
-          <div>
-            {allItems.map((e, i) => {
-              const badgeCls = e.status === "ok" ? "badge-ok" : e.status === "warn" ? "badge-warn" : e.status === "nok" ? "badge-nok" : "badge-grey";
-              const badgeLbl = e.status === "ok" ? "OK" : e.status === "warn" ? "Let op" : e.status === "nok" ? "NOK" : "—";
-              return (
-                <div key={i} className="flex items-center gap-3 px-5 py-3"
-                  style={{ borderBottom: i < allItems.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>{e.details}</div>
-                    <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{e.type} · {e.date} {e.time}</div>
-                  </div>
-                  {e.status && <span className={`${badgeCls} shrink-0`}>{badgeLbl}</span>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

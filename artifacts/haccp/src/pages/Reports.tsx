@@ -173,9 +173,6 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
                     borderRadius: "4px 4px 0 0",
                   }}>
                   {f.label}
-                  <span className="ml-1.5 opacity-70" style={{ fontSize: 10 }}>
-                    ({cleanReports.filter(r => r.freq === f.key).length})
-                  </span>
                 </button>
               ))}
             </div>
