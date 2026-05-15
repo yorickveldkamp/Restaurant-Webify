@@ -1,13 +1,6 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { TempReport, CleanReport, statusLabel } from "./data";
-
-declare module "jspdf" {
-  interface jsPDF {
-    autoTable: (options: Record<string, unknown>) => jsPDF;
-    lastAutoTable: { finalY: number };
-  }
-}
 
 function makePDF(title: string, sections: Array<{
   title: string;
@@ -18,6 +11,7 @@ function makePDF(title: string, sections: Array<{
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const dateStr = new Date().toLocaleDateString("nl-BE", { day: "numeric", month: "long", year: "numeric" });
   const W = doc.internal.pageSize.getWidth();
+
   doc.setFillColor(30, 30, 30);
   doc.rect(0, 0, W, 28, "F");
   doc.setTextColor(255, 255, 255);
@@ -41,7 +35,7 @@ function makePDF(title: string, sections: Array<{
       doc.setFontSize(9);
       doc.setFont("helvetica", "italic");
       doc.setTextColor(100, 100, 100);
-      doc.text(sec.subtitle, 14, y);
+      doc.text(sec.subtitle, 14, y, { maxWidth: W - 28 });
     }
     y += 6;
     if (!sec.rows?.length) {
@@ -52,7 +46,7 @@ function makePDF(title: string, sections: Array<{
       y += 10;
       return;
     }
-    doc.autoTable({
+    autoTable(doc, {
       head: [sec.headers],
       body: sec.rows,
       startY: y,
@@ -60,16 +54,22 @@ function makePDF(title: string, sections: Array<{
       styles: { fontSize: 8, cellPadding: 2.5, overflow: "linebreak" },
       headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [245, 245, 242] },
-      didParseCell: (d: { section: string; cell: { raw: unknown; styles: { textColor: number[]; fontStyle: string } } }) => {
+      didParseCell: (d) => {
         if (d.section === "body") {
           const v = String(d.cell.raw || "");
-          if (v === "NOK" || v === "Open") { d.cell.styles.textColor = [163, 45, 45]; d.cell.styles.fontStyle = "bold"; }
-          else if (v === "Let op") { d.cell.styles.textColor = [133, 79, 11]; }
-          else if (v === "OK" || v === "Gedaan") { d.cell.styles.textColor = [59, 109, 17]; }
+          if (v === "NOK" || v === "Open") {
+            d.cell.styles.textColor = [163, 45, 45];
+            d.cell.styles.fontStyle = "bold";
+          } else if (v === "Let op") {
+            d.cell.styles.textColor = [133, 79, 11];
+          } else if (v === "OK" || v === "Gedaan") {
+            d.cell.styles.textColor = [59, 109, 17];
+          }
         }
       },
     });
-    y = doc.lastAutoTable.finalY + 14;
+    // @ts-expect-error lastAutoTable is added by jspdf-autotable
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
   });
 
   const pages = doc.internal.getNumberOfPages();
@@ -101,9 +101,9 @@ export function downloadCleanReport(r: CleanReport): void {
   const sec = {
     title: `Reinigingsrapport – ${r.freq} – ${r.datum}`,
     subtitle: `Uitgevoerd door: ${r.door || "—"}  |  Opgeslagen om ${r.time}`,
-    headers: ["Taak", "Afgevinkt", "Tijdstip", "Handtekening", "Opmerking"],
+    headers: ["Taak", "Afgevinkt", "Tijdstip", "Opmerking"],
     rows: r.rows.map((row) => [
-      row.task, row.checked ? "Gedaan" : "Open", row.tijdstip || "—", row.handtekening || "—", row.note || "",
+      row.task, row.checked ? "Gedaan" : "Open", row.tijdstip || "—", row.note || "",
     ]),
   };
   makePDF(`Reinigingsrapport – ${r.freq} – ${r.datum}`, [sec]).save(
@@ -132,10 +132,10 @@ export function exportAllTempCSV(tempReports: TempReport[]): void {
 
 export function exportAllCleanCSV(cleanReports: CleanReport[]): void {
   if (!cleanReports.length) return;
-  const rows: string[][] = [["Frequentie", "Datum", "Uitgevoerd door", "Taak", "Afgevinkt", "Tijdstip", "Handtekening", "Opmerking"]];
+  const rows: string[][] = [["Frequentie", "Datum", "Uitgevoerd door", "Taak", "Afgevinkt", "Tijdstip", "Opmerking"]];
   cleanReports.forEach((r) =>
     r.rows.forEach((row) =>
-      rows.push([r.freq, r.datum, r.door || "", row.task, row.checked ? "Gedaan" : "Open", row.tijdstip || "", row.handtekening || "", row.note || ""])
+      rows.push([r.freq, r.datum, r.door || "", row.task, row.checked ? "Gedaan" : "Open", row.tijdstip || "", row.note || ""])
     )
   );
   downloadCSV(rows, "haccp_reiniging_alle");

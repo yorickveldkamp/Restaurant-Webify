@@ -11,12 +11,11 @@ type Freq = "dagelijks" | "wekelijks" | "maandelijks";
 type TaskState = {
   checked: boolean;
   tijdstip: string;
-  handtekening: string;
   note: string;
 };
 
 function initTasks(freq: Freq): TaskState[] {
-  return CLEANING_TASKS[freq].map(() => ({ checked: false, tijdstip: "", handtekening: "", note: "" }));
+  return CLEANING_TASKS[freq].map(() => ({ checked: false, tijdstip: "", note: "" }));
 }
 
 function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanReport) => void; onToast: (msg: string) => void }) {
@@ -30,10 +29,14 @@ function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanRep
 
   const save = () => {
     if (!datum.trim()) { onToast("Vul de datum in."); return; }
-    const anyChecked = tasks.some((t) => t.checked || t.tijdstip || t.handtekening || t.note);
+    const anyChecked = tasks.some((t) => t.checked || t.tijdstip || t.note);
     if (!anyChecked) { onToast("Vink minstens één taak aan of vul iets in."); return; }
     const rows: CleanRow[] = CLEANING_TASKS[freq].map((task, i) => ({
-      task, checked: tasks[i].checked, tijdstip: tasks[i].tijdstip, handtekening: tasks[i].handtekening, note: tasks[i].note,
+      task,
+      checked: tasks[i].checked,
+      tijdstip: tasks[i].tijdstip,
+      handtekening: "",
+      note: tasks[i].note,
     }));
     const allDone = rows.every((r) => r.checked);
     const overallStatus = allDone ? "ok" : "warn";
@@ -75,8 +78,7 @@ function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanRep
             <tr className="bg-gray-50">
               <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-8">✓</th>
               <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200">Taak</th>
-              <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-24">Tijd</th>
-              <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-28">Handtekening</th>
+              <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200 w-28">Tijd</th>
               <th className="text-left px-2 py-2 text-xs font-medium text-gray-500 border-b border-gray-200">Opmerkingen</th>
             </tr>
           </thead>
@@ -97,15 +99,6 @@ function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanRep
                     type="time"
                     value={tasks[i].tijdstip}
                     onChange={(e) => updateTask(i, "tijdstip", e.target.value)}
-                    className="border border-gray-200 rounded px-1.5 py-1 text-xs w-full focus:outline-none focus:ring-1 focus:ring-gray-400"
-                  />
-                </td>
-                <td className="px-2 py-2">
-                  <input
-                    type="text"
-                    value={tasks[i].handtekening}
-                    onChange={(e) => updateTask(i, "handtekening", e.target.value)}
-                    placeholder="paraaf"
                     className="border border-gray-200 rounded px-1.5 py-1 text-xs w-full focus:outline-none focus:ring-1 focus:ring-gray-400"
                   />
                 </td>
@@ -137,28 +130,14 @@ function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanRep
               />
               <span className={`text-sm leading-relaxed ${tasks[i].checked ? "line-through text-gray-400" : "text-gray-900"}`}>{task}</span>
             </label>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <div>
-                <label className="text-xs text-gray-400 block mb-0.5">Tijd</label>
-                <input
-                  type="time"
-                  value={tasks[i].tijdstip}
-                  onChange={(e) => updateTask(i, "tijdstip", e.target.value)}
-                  className="border border-gray-200 rounded px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-gray-400"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 block mb-0.5">Handtekening</label>
-                <input
-                  type="text"
-                  value={tasks[i].handtekening}
-                  onChange={(e) => updateTask(i, "handtekening", e.target.value)}
-                  placeholder="paraaf"
-                  className="border border-gray-200 rounded px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-gray-400"
-                />
-              </div>
-            </div>
             <div className="mt-2">
+              <label className="text-xs text-gray-400 block mb-0.5">Tijd</label>
+              <input
+                type="time"
+                value={tasks[i].tijdstip}
+                onChange={(e) => updateTask(i, "tijdstip", e.target.value)}
+                className="border border-gray-200 rounded px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-gray-400 mb-2"
+              />
               <input
                 type="text"
                 value={tasks[i].note}
