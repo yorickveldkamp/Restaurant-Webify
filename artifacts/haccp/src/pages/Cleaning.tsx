@@ -98,7 +98,16 @@ function FreqPanel({ freq, onSave, onToast, autoFillDoor = "" }: { freq: Freq; o
   }, [freq]);
 
   const update = (i: number, field: keyof TaskState, value: string | boolean) =>
-    setTasks(prev => prev.map((t, idx) => idx === i ? { ...t, [field]: value } : t));
+    setTasks(prev => prev.map((t, idx) => {
+      if (idx !== i) return t;
+      const next = { ...t, [field]: value };
+      // When checking off a task, auto-fill the time with the current time
+      // if it isn't filled in yet. Unchecking does not clear it.
+      if (field === "checked" && value === true && !next.tijdstip) {
+        next.tijdstip = nowTime().slice(0, 5);
+      }
+      return next;
+    }));
 
   const periodLabel = (() => {
     if (freq === "dagelijks")  return dayOptions.find(o => o.value === datum)?.label ?? datum;
