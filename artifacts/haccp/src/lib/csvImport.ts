@@ -101,12 +101,30 @@ export function parseCSV(text: string): string[][] {
   // drop trailing empty rows
   while (rows.length && rows[rows.length - 1].every(c => c === "")) rows.pop();
 
-  // Unwrap double-encoded files: every row is a single field whose inner content
-  // is itself comma-delimited (e.g. `"colA,""colB"",""colC"""` → colA,"colB","colC").
+  // Unwrap double/triple-encoded files: every row is a single field whose inner
+  // content is itself comma-delimited. Some exports (e.g. Numbers on Mac) add
+  // extra quoting layers — the header may be encoded one level deeper than the
+  // data rows. We run up to 3 passes, checking after each pass whether the data
+  // rows have expanded; if so we also force-unwrap any header rows that are still
+  // stuck at 1 column.
   if (rows.length >= 2 && rows.every(r => r.length === 1)) {
-    const unwrapped = rows.map(r => parseCSVRow(r[0]));
-    // Only accept the unwrapped result if we got more than 1 column per row
-    if (unwrapped[0].length > 1) return unwrapped;
+    let fields = rows.map(r => r[0]);
+    for (let pass = 0; pass < 3; pass++) {
+      const parsed = fields.map(s => parseCSVRow(s.replace(/^\uFEFF/, "")));
+      // Check the modal column count across data rows (ignore header at index 0)
+      const dataLengths = parsed.slice(1).map(r => r.length);
+      dataLengths.sort((a, b) => a - b);
+      const modal = dataLengths[Math.floor(dataLengths.length / 2)] ?? 1;
+      if (modal > 1) {
+        // Data rows are expanded. Any row still at 1 column (e.g. header encoded
+        // one level deeper) gets one additional unwrap pass.
+        return parsed.map(r =>
+          r.length === 1 ? parseCSVRow(r[0].replace(/^\uFEFF/, "")) : r
+        );
+      }
+      // Nothing expanded yet — peel one more layer and retry
+      fields = parsed.map(r => r[0]);
+    }
   }
 
   return rows;
