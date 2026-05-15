@@ -1,6 +1,6 @@
-# [Project name]
+# HACCP Beheer
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A Dutch-language HACCP food safety compliance app for restaurants. Tracks fridge/freezer temperatures, cleaning checklists (daily/weekly/monthly), and generates PDF and CSV reports. Data is stored locally in the browser via localStorage.
 
 ## Run & Operate
 
@@ -19,18 +19,27 @@ _Replace the heading above with the project's name, and this line with one sente
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
+- Frontend: React + Vite + Tailwind CSS (artifacts/haccp)
+- PDF generation: jsPDF + jspdf-autotable
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/haccp/src/lib/data.ts` — all constants (OBJECTS, CLEANING_TASKS), types, and utility functions
+- `artifacts/haccp/src/lib/storage.ts` — localStorage read/write helpers
+- `artifacts/haccp/src/lib/pdf.ts` — PDF and CSV export logic
+- `artifacts/haccp/src/pages/` — Dashboard, Temperature, Cleaning, Reports tabs
+- `lib/api-spec/openapi.yaml` — OpenAPI contract (health check only, app is frontend-only)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- App is fully frontend-only; no backend needed. Data persists in localStorage under `haccp:temp-reports` and `haccp:clean-reports`.
+- Mobile-first responsive design: wide tables on desktop, card-based layout on mobile (md breakpoint).
+- PDF generation done client-side with jsPDF + autotable — no server required.
+- Status thresholds: Koeling OK ≤ 7.0°C / warn ≤ 10°C; Diepvries OK ≤ -18.0°C / warn ≥ -21°C.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Dutch HACCP restaurant compliance tool with four tabs: Dashboard (stats + recent log), Temperatuur (fridge/freezer measurements with 3 readings per unit), Reiniging (daily/weekly/monthly cleaning checklists), and Rapporten (view/delete/export saved reports as PDF or CSV).
 
 ## User preferences
 
@@ -38,7 +47,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The `jspdf-autotable` package requires a type declaration override in `pdf.ts` (the `autoTable` method is not in the base jsPDF types).
+- Do not run `pnpm dev` at workspace root.
 
 ## Pointers
 

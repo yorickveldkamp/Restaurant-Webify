@@ -1,0 +1,641 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.app{min-height:600px;background:var(--color-background-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.header{background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.header-title{font-size:18px;font-weight:500}
+.header-sub{font-size:13px;color:var(--color-text-secondary);margin-top:2px}
+.nav{display:flex;gap:4px;padding:0.75rem 1.25rem;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex-wrap:wrap}
+.nav-btn{font-size:13px;padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid transparent;cursor:pointer;background:transparent;color:var(--color-text-secondary);display:flex;align-items:center;gap:6px;transition:all 0.15s}
+.nav-btn:hover{background:var(--color-background-secondary)}
+.nav-btn.active{background:var(--color-background-secondary);border-color:var(--color-border-secondary);color:var(--color-text-primary);font-weight:500}
+.content{padding:1.25rem}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem}
+.card-title{font-size:15px;font-weight:500;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.btn-primary{padding:8px 20px;border-radius:var(--border-radius-md);background:var(--color-text-primary);color:var(--color-background-primary);border:none;cursor:pointer;font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px}
+.btn-primary:hover{opacity:0.85}
+.btn-action{padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;font-size:13px;color:var(--color-text-secondary);display:flex;align-items:center;gap:6px}
+.btn-action:hover{background:var(--color-background-secondary)}
+.btn-danger{padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-danger);background:transparent;cursor:pointer;font-size:13px;color:var(--color-text-danger);display:flex;align-items:center;gap:6px}
+.btn-danger:hover{background:var(--color-background-danger)}
+.log-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.log-table th{text-align:left;padding:8px 10px;font-weight:500;font-size:12px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.log-table td{padding:8px 10px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-table tr:last-child td{border-bottom:none}
+.badge{font-size:11px;padding:2px 8px;border-radius:var(--border-radius-md);font-weight:500;white-space:nowrap}
+.badge-ok{background:#EAF3DE;color:#27500A}
+.badge-warn{background:#FAEEDA;color:#633806}
+.badge-nok{background:#FCEBEB;color:#791F1F}
+.badge-grey{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:1rem}
+.stat-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:1rem;text-align:center}
+.stat-num{font-size:24px;font-weight:500}
+.stat-label{font-size:12px;color:var(--color-text-secondary);margin-top:2px}
+.empty{text-align:center;padding:2rem;color:var(--color-text-secondary);font-size:14px}
+.section-actions{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px}
+.toast{position:absolute;bottom:20px;right:20px;background:var(--color-text-primary);color:var(--color-background-primary);padding:10px 18px;border-radius:var(--border-radius-md);font-size:13px;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:100}
+.toast.show{opacity:1}
+.norm-info{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:0.75rem 1rem;margin-bottom:1rem;font-size:13px;color:var(--color-text-secondary)}
+.freq-tabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.freq-tab{padding:6px 16px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);cursor:pointer;font-size:13px;background:transparent;color:var(--color-text-secondary);transition:all 0.15s}
+.freq-tab:hover{background:var(--color-background-secondary)}
+.freq-tab.active{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary);font-weight:500}
+.checklist-table{width:100%;border-collapse:collapse;font-size:13px}
+.checklist-table th{text-align:left;padding:8px 10px;font-weight:500;font-size:12px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.checklist-table td{padding:7px 8px;border-bottom:0.5px solid var(--color-border-tertiary);vertical-align:middle}
+.checklist-table tr:last-child td{border-bottom:none}
+.checklist-table input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:#1e1e1e}
+.task-label{font-size:13px;color:var(--color-text-primary);line-height:1.4}
+.meta-row{display:flex;gap:12px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+.meta-row label{font-size:13px;color:var(--color-text-secondary);white-space:nowrap}
+.meta-row input{max-width:180px;font-size:13px}
+.saving-indicator{font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:5px}
+.report-list{display:flex;flex-direction:column;gap:8px}
+.report-item{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:0.875rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.report-item-info{display:flex;flex-direction:column;gap:3px}
+.report-item-title{font-size:14px;font-weight:500;color:var(--color-text-primary)}
+.report-item-meta{font-size:12px;color:var(--color-text-secondary)}
+.report-item-actions{display:flex;gap:6px}
+.report-type-tabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.report-type-tab{padding:5px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);cursor:pointer;font-size:13px;background:transparent;color:var(--color-text-secondary);transition:all 0.15s}
+.report-type-tab:hover{background:var(--color-background-secondary)}
+.report-type-tab.active{background:var(--color-background-secondary);border-color:var(--color-border-primary);color:var(--color-text-primary);font-weight:500}
+.divider-row{background:var(--color-background-secondary);font-size:11px;font-weight:500;color:var(--color-text-secondary);padding:6px 10px;letter-spacing:0.04em}
+</style>
+
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">HACCP registratie app restaurant</h2>
+<div style="position:relative">
+<div id="toast" class="toast"></div>
+<div class="app">
+
+  <div class="header">
+    <div>
+      <div class="header-title"><i class="ti ti-shield-check" aria-hidden="true"></i> HACCP Beheer</div>
+      <div class="header-sub" id="today-label"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="saving-indicator" id="save-indicator"><i class="ti ti-cloud-check" aria-hidden="true"></i> Gegevens opgeslagen</span>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="showTab('dashboard')" id="tab-dashboard"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard</button>
+    <button class="nav-btn" onclick="showTab('temp')" id="tab-temp"><i class="ti ti-thermometer" aria-hidden="true"></i> Diepvries &amp; Koeling</button>
+    <button class="nav-btn" onclick="showTab('cleaning')" id="tab-cleaning"><i class="ti ti-spray" aria-hidden="true"></i> Reiniging</button>
+    <button class="nav-btn" onclick="showTab('reports')" id="tab-reports"><i class="ti ti-folder" aria-hidden="true"></i> Rapporten</button>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="pane-dashboard">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num" id="stat-temp">0</div><div class="stat-label">Temperatuurrapporten</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-clean">0</div><div class="stat-label">Reinigingsrapporten</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-clock" aria-hidden="true"></i> Recente registraties</div>
+        <table class="log-table">
+          <thead><tr><th style="width:80px">Datum</th><th style="width:80px">Tijd</th><th style="width:120px">Type</th><th>Details</th><th style="width:75px">Status</th></tr></thead>
+          <tbody id="recent-log"><tr><td colspan="5" class="empty">Nog geen registraties</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--color-text-danger)"><i class="ti ti-trash" aria-hidden="true"></i> Gegevens wissen</div>
+        <p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem">Verwijder opgeslagen rapporten permanent.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-danger" onclick="clearData('temp')"><i class="ti ti-trash" aria-hidden="true"></i> Temperaturen wissen</button>
+          <button class="btn-danger" onclick="clearData('cleaning')"><i class="ti ti-trash" aria-hidden="true"></i> Reiniging wissen</button>
+          <button class="btn-danger" onclick="clearData('all')"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Alles wissen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEMPERATUREN -->
+    <div id="pane-temp" style="display:none">
+      <div class="norm-info">
+        <strong>Koeling:</strong> max 7,0°C &nbsp;|&nbsp; afkeur: 7,1°C en hoger &nbsp;&nbsp;
+        <strong>Diepvries:</strong> max -18,0°C &nbsp;|&nbsp; afkeur: -17,9°C en warmer
+      </div>
+      <div class="card">
+        <div class="meta-row">
+          <label><i class="ti ti-calendar" aria-hidden="true"></i> Week + jaar:</label>
+          <input type="text" id="week-nr" placeholder="bv. week 21 – 2026">
+          <label>Paraaf:</label>
+          <input type="text" id="paraaf" placeholder="initialen" style="max-width:90px">
+        </div>
+        <table class="checklist-table">
+          <thead><tr>
+            <th style="width:165px">Object</th>
+            <th style="width:78px">1e meting</th>
+            <th style="width:78px">2e meting</th>
+            <th style="width:78px">3e meting</th>
+            <th style="width:72px">Status</th>
+            <th>Corrigerende maatregel</th>
+          </tr></thead>
+          <tbody id="checklist-body"></tbody>
+        </table>
+        <div style="display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap">
+          <button class="btn-primary" onclick="saveChecklistAsReport()"><i class="ti ti-device-floppy" aria-hidden="true"></i> Opslaan als rapport</button>
+          <button class="btn-action" onclick="exportCSV('temp')"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REINIGING -->
+    <div id="pane-cleaning" style="display:none">
+      <div class="freq-tabs">
+        <button class="freq-tab active" onclick="showFreq('dagelijks')" id="ftab-dagelijks"><i class="ti ti-sun" aria-hidden="true"></i> Dagelijks</button>
+        <button class="freq-tab" onclick="showFreq('wekelijks')" id="ftab-wekelijks"><i class="ti ti-calendar-week" aria-hidden="true"></i> Wekelijks</button>
+        <button class="freq-tab" onclick="showFreq('maandelijks')" id="ftab-maandelijks"><i class="ti ti-calendar-month" aria-hidden="true"></i> Maandelijks</button>
+      </div>
+
+      <div id="fpane-dagelijks">
+        <div class="card">
+          <div class="meta-row">
+            <label>Datum:</label><input type="text" id="c-dag-datum" style="max-width:130px">
+            <label>Uitgevoerd door:</label><input type="text" id="c-dag-door" placeholder="Naam" style="max-width:160px">
+          </div>
+          <table class="checklist-table">
+            <thead><tr><th style="width:36px">Klaar</th><th>Taak</th><th style="width:90px">Tijd</th><th style="width:100px">Handtekening</th><th>Opmerkingen</th></tr></thead>
+            <tbody id="dag-tasks"></tbody>
+          </table>
+          <div style="display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap">
+            <button class="btn-primary" onclick="saveCleaningReport('dagelijks')"><i class="ti ti-device-floppy" aria-hidden="true"></i> Opslaan als rapport</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="fpane-wekelijks" style="display:none">
+        <div class="card">
+          <div class="meta-row">
+            <label>Datum:</label><input type="text" id="c-week-datum" style="max-width:130px">
+            <label>Uitgevoerd door:</label><input type="text" id="c-week-door" placeholder="Naam" style="max-width:160px">
+          </div>
+          <table class="checklist-table">
+            <thead><tr><th style="width:36px">Klaar</th><th>Taak</th><th style="width:90px">Tijd</th><th style="width:100px">Handtekening</th><th>Opmerkingen</th></tr></thead>
+            <tbody id="week-tasks"></tbody>
+          </table>
+          <div style="display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap">
+            <button class="btn-primary" onclick="saveCleaningReport('wekelijks')"><i class="ti ti-device-floppy" aria-hidden="true"></i> Opslaan als rapport</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="fpane-maandelijks" style="display:none">
+        <div class="card">
+          <div class="meta-row">
+            <label>Datum:</label><input type="text" id="c-maand-datum" style="max-width:130px">
+            <label>Uitgevoerd door:</label><input type="text" id="c-maand-door" placeholder="Naam" style="max-width:160px">
+          </div>
+          <table class="checklist-table">
+            <thead><tr><th style="width:36px">Klaar</th><th>Taak</th><th style="width:90px">Tijd</th><th style="width:100px">Handtekening</th><th>Opmerkingen</th></tr></thead>
+            <tbody id="maand-tasks"></tbody>
+          </table>
+          <div style="display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap">
+            <button class="btn-primary" onclick="saveCleaningReport('maandelijks')"><i class="ti ti-device-floppy" aria-hidden="true"></i> Opslaan als rapport</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAPPORTEN -->
+    <div id="pane-reports" style="display:none">
+      <div class="report-type-tabs">
+        <button class="report-type-tab active" onclick="showReportType('temp-reports')" id="rtab-temp-reports"><i class="ti ti-thermometer" aria-hidden="true"></i> Temperatuur</button>
+        <button class="report-type-tab" onclick="showReportType('clean-reports')" id="rtab-clean-reports"><i class="ti ti-spray" aria-hidden="true"></i> Reiniging</button>
+      </div>
+
+      <div id="rpane-temp-reports">
+        <div class="card">
+          <div class="section-actions">
+            <span class="card-title" style="margin:0"><i class="ti ti-thermometer" aria-hidden="true"></i> Temperatuurrapporten per week</span>
+            <button class="btn-action" onclick="exportAllTempCSV()"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Alles als CSV</button>
+          </div>
+          <div class="report-list" id="temp-report-list"><div class="empty">Nog geen rapporten opgeslagen</div></div>
+        </div>
+      </div>
+
+      <div id="rpane-clean-reports" style="display:none">
+        <div class="card">
+          <div class="section-actions">
+            <span class="card-title" style="margin:0"><i class="ti ti-spray" aria-hidden="true"></i> Reinigingsrapporten</span>
+            <button class="btn-action" onclick="exportAllCleanCSV()"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Alles als CSV</button>
+          </div>
+          <div class="report-list" id="clean-report-list"><div class="empty">Nog geen rapporten opgeslagen</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+const OBJECTS=[
+  {id:'kuhlhaus',label:'Kühlhaus',type:'koeling'},
+  {id:'koeling_vlees',label:'Koelinglade vlees',type:'koeling'},
+  {id:'koeling_vis',label:'Koelinglade vis',type:'koeling'},
+  {id:'koeling_overig1',label:'Koeling overig 1',type:'koeling'},
+  {id:'koeling_kaas',label:'Koeling kaas & vlees',type:'koeling'},
+  {id:'koeling_tapenades',label:'Koelinglade tapenades',type:'koeling'},
+  {id:'koeling_overig2',label:'Koelinglade overig 2',type:'koeling'},
+  {id:'koeling_frisdranken',label:'Koelinglade frisdranken',type:'koeling'},
+  {id:'diepvries_klein',label:'Diepvries keuken klein',type:'diepvries'},
+  {id:'diepvries1',label:'Diepvries 1',type:'diepvries'},
+  {id:'diepvries2',label:'Diepvries 2',type:'diepvries'},
+  {id:'diepvries3',label:'Diepvries 3',type:'diepvries'},
+  {id:'diepvries4',label:'Diepvries 4 (beneden)',type:'diepvries'},
+  {id:'diepvries5',label:'Diepvries 5 (beneden)',type:'diepvries'},
+];
+const CLEANING_TASKS={
+  dagelijks:['Werkbladen en snijplanken reinigen en desinfecteren','Kookapparatuur (fornuis, oven, grill) schoonmaken','Vloeren schrobben','Koelkasten controleren en morsen verwijderen','Afvalbakken legen en reinigen','Handwasbakjes schoonmaken en bijvullen (zeep, papier)','Vaatwas station schoonmaken en alle vaatwas wegruimen'],
+  wekelijks:['Koel- en vriescellen volledig reinigen en desinfecteren','Afzuigkap en filters reinigen','Muren en deuren afnemen','Achter en onder apparatuur schoonmaken','Magazijn en opslagruimte opruimen en reinigen'],
+  maandelijks:['Plafond, lampen en ventilatieroosters reinigen','Waterafvoeren en sifons doorspoelen','Controle op ongedierte en sporen','Kleine onderhoudsreparaties uitvoeren'],
+};
+
+let tempReports=[];
+let cleanReports=[];
+
+function nowTime(){const d=new Date();return d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});}
+function todayDate(){return new Date().toLocaleDateString('nl-BE',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function todayFull(){return new Date().toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+document.getElementById('today-label').textContent=todayFull();
+document.getElementById('c-dag-datum').value=todayDate();
+document.getElementById('c-week-datum').value=todayDate();
+document.getElementById('c-maand-datum').value=todayDate();
+
+async function loadData(){
+  setSaveIndicator('loading');
+  try{const r=await window.storage.get('haccp:temp-reports');if(r)tempReports=JSON.parse(r.value);}catch(e){}
+  try{const r=await window.storage.get('haccp:clean-reports');if(r)cleanReports=JSON.parse(r.value);}catch(e){}
+  renderTempReportList();renderCleanReportList();updateDashboard();
+  setSaveIndicator('saved');
+}
+
+async function persist(){
+  setSaveIndicator('saving');
+  try{
+    await window.storage.set('haccp:temp-reports',JSON.stringify(tempReports));
+    await window.storage.set('haccp:clean-reports',JSON.stringify(cleanReports));
+    setSaveIndicator('saved');
+  }catch(e){setSaveIndicator('error');}
+}
+
+function setSaveIndicator(state){
+  const el=document.getElementById('save-indicator');
+  const icons={saving:'ti-cloud',saved:'ti-cloud-check',loading:'ti-cloud',error:'ti-cloud-x'};
+  const labels={saving:'Opslaan...',saved:'Opgeslagen',loading:'Laden...',error:'Opslag mislukt'};
+  el.innerHTML=`<i class="ti ${icons[state]}" aria-hidden="true"></i> ${labels[state]}`;
+}
+
+async function clearData(type){
+  const labels={temp:'alle temperatuurrapporten',cleaning:'alle reinigingsrapporten',all:'ALLE rapporten'};
+  if(!confirm(`Weet je zeker dat je ${labels[type]} permanent wil verwijderen?`))return;
+  if(type==='temp'||type==='all'){tempReports=[];try{await window.storage.delete('haccp:temp-reports');}catch(e){}}
+  if(type==='cleaning'||type==='all'){cleanReports=[];try{await window.storage.delete('haccp:clean-reports');}catch(e){}}
+  renderTempReportList();renderCleanReportList();updateDashboard();
+  toast('Gegevens verwijderd');setSaveIndicator('saved');
+}
+
+function showTab(t){
+  ['dashboard','temp','cleaning','reports'].forEach(id=>{
+    document.getElementById('pane-'+id).style.display=id===t?'block':'none';
+    document.getElementById('tab-'+id).classList.toggle('active',id===t);
+  });
+  if(t==='dashboard')updateDashboard();
+  if(t==='reports'){renderTempReportList();renderCleanReportList();}
+}
+
+function showFreq(f){
+  ['dagelijks','wekelijks','maandelijks'].forEach(id=>{
+    document.getElementById('fpane-'+id).style.display=id===f?'block':'none';
+    document.getElementById('ftab-'+id).classList.toggle('active',id===f);
+  });
+}
+
+function showReportType(t){
+  ['temp-reports','clean-reports'].forEach(id=>{
+    document.getElementById('rpane-'+id).style.display=id===t?'block':'none';
+    document.getElementById('rtab-'+id).classList.toggle('active',id===t);
+  });
+}
+
+function statusForTemp(val,type){
+  if(val===null||val===''||isNaN(val))return null;
+  val=parseFloat(val);
+  if(type==='koeling')return val<=7.0?'ok':val<=10?'warn':'nok';
+  if(type==='diepvries')return val<=-18.0?'ok':val>=-21?'warn':'nok';
+  return 'ok';
+}
+function worstStatus(arr){if(arr.includes('nok'))return 'nok';if(arr.includes('warn'))return 'warn';if(arr.includes('ok'))return 'ok';return null;}
+function statusLabel(s){return s==='ok'?'OK':s==='warn'?'Let op':s==='nok'?'NOK':'—';}
+function statusBadge(s){if(!s)return'—';return`<span class="badge badge-${s}">${statusLabel(s)}</span>`;}
+
+function buildChecklist(){
+  const tb=document.getElementById('checklist-body');
+  let html='',lastType='';
+  OBJECTS.forEach(obj=>{
+    if(obj.type!==lastType){
+      const lbl=obj.type==='koeling'?'Koeling — norm max 7,0°C':'Diepvries — norm max -18,0°C';
+      html+=`<tr><td colspan="6" class="divider-row">${lbl}</td></tr>`;
+      lastType=obj.type;
+    }
+    html+=`<tr>
+      <td><div class="task-label">${obj.label}</div></td>
+      <td><input type="number" step="0.1" id="${obj.id}_m1" oninput="updateRowStatus('${obj.id}')" placeholder="°C" style="width:68px;font-size:13px;padding:4px 6px;text-align:center"></td>
+      <td><input type="number" step="0.1" id="${obj.id}_m2" oninput="updateRowStatus('${obj.id}')" placeholder="°C" style="width:68px;font-size:13px;padding:4px 6px;text-align:center"></td>
+      <td><input type="number" step="0.1" id="${obj.id}_m3" oninput="updateRowStatus('${obj.id}')" placeholder="°C" style="width:68px;font-size:13px;padding:4px 6px;text-align:center"></td>
+      <td id="${obj.id}_status">—</td>
+      <td><input type="text" id="${obj.id}_maatregel" placeholder="indien nodig" style="width:100%;font-size:13px;padding:4px 6px"></td>
+    </tr>`;
+  });
+  tb.innerHTML=html;
+}
+buildChecklist();
+
+function updateRowStatus(id){
+  const obj=OBJECTS.find(o=>o.id===id);
+  const vals=['m1','m2','m3'].map(m=>document.getElementById(id+'_'+m).value).filter(v=>v!=='');
+  const statuses=vals.map(v=>statusForTemp(v,obj.type)).filter(s=>s);
+  document.getElementById(id+'_status').innerHTML=worstStatus(statuses)?statusBadge(worstStatus(statuses)):'—';
+}
+
+async function saveChecklistAsReport(){
+  const week=document.getElementById('week-nr').value.trim();
+  const paraaf=document.getElementById('paraaf').value.trim();
+  if(!week){toast('Vul het weeknummer in voor je opslaat.');return;}
+  const rows=[];
+  let anyData=false;
+  OBJECTS.forEach(obj=>{
+    const m1=document.getElementById(obj.id+'_m1').value;
+    const m2=document.getElementById(obj.id+'_m2').value;
+    const m3=document.getElementById(obj.id+'_m3').value;
+    const maatregel=document.getElementById(obj.id+'_maatregel').value.trim();
+    const vals=[m1,m2,m3].filter(v=>v!=='');
+    if(!vals.length){rows.push({object:obj.label,type:obj.type,m1:'',m2:'',m3:'',avg:'',status:null,maatregel});return;}
+    anyData=true;
+    const statuses=vals.map(v=>statusForTemp(v,obj.type));
+    const ws=worstStatus(statuses);
+    const avg=vals.reduce((a,b)=>a+parseFloat(b),0)/vals.length;
+    rows.push({object:obj.label,type:obj.type,m1,m2,m3,avg:avg.toFixed(1),status:ws,maatregel});
+  });
+  if(!anyData){toast('Voer eerst metingen in.');return;}
+  const allStatuses=rows.map(r=>r.status).filter(Boolean);
+  const ws=worstStatus(allStatuses);
+  const report={id:uid(),week,paraaf,date:todayDate(),time:nowTime(),rows,overallStatus:ws,type:'temp'};
+  tempReports.unshift(report);
+  await persist();
+  renderTempReportList();updateDashboard();
+  toast(`Rapport "${week}" opgeslagen`);
+  OBJECTS.forEach(obj=>{
+    document.getElementById(obj.id+'_m1').value='';
+    document.getElementById(obj.id+'_m2').value='';
+    document.getElementById(obj.id+'_m3').value='';
+    document.getElementById(obj.id+'_maatregel').value='';
+    document.getElementById(obj.id+'_status').innerHTML='—';
+  });
+  document.getElementById('week-nr').value='';
+  document.getElementById('paraaf').value='';
+}
+
+function buildCleaningTasks(){
+  ['dagelijks','wekelijks','maandelijks'].forEach(freq=>{
+    const prefix=freq==='dagelijks'?'dag':freq==='wekelijks'?'week':'maand';
+    const tb=document.getElementById(prefix+'-tasks');
+    tb.innerHTML=CLEANING_TASKS[freq].map((task,i)=>`<tr>
+      <td style="text-align:center"><input type="checkbox" id="${prefix}_cb_${i}"></td>
+      <td><div class="task-label">${task}</div></td>
+      <td><input type="time" id="${prefix}_time_${i}" style="width:85px;font-size:13px;padding:3px 5px"></td>
+      <td><input type="text" id="${prefix}_sign_${i}" placeholder="paraaf" style="width:90px;font-size:13px;padding:4px 6px"></td>
+      <td><input type="text" id="${prefix}_note_${i}" placeholder="opmerking" style="width:100%;font-size:13px;padding:4px 6px"></td>
+    </tr>`).join('');
+  });
+}
+buildCleaningTasks();
+
+async function saveCleaningReport(freq){
+  const prefix=freq==='dagelijks'?'dag':freq==='wekelijks'?'week':'maand';
+  const datum=document.getElementById('c-'+prefix+'-datum').value.trim();
+  const door=document.getElementById('c-'+prefix+'-door').value.trim();
+  if(!datum){toast('Vul de datum in.');return;}
+  const tasks=CLEANING_TASKS[freq];
+  const rows=tasks.map((task,i)=>({
+    task,
+    checked:document.getElementById(prefix+'_cb_'+i).checked,
+    tijdstip:document.getElementById(prefix+'_time_'+i).value,
+    handtekening:document.getElementById(prefix+'_sign_'+i).value.trim(),
+    note:document.getElementById(prefix+'_note_'+i).value.trim(),
+  }));
+  const anyChecked=rows.some(r=>r.checked||r.tijdstip||r.handtekening||r.note);
+  if(!anyChecked){toast('Vink minstens één taak aan of vul iets in.');return;}
+  const allDone=rows.every(r=>r.checked);
+  const overallStatus=allDone?'ok':rows.some(r=>!r.checked)?'warn':'ok';
+  const report={id:uid(),freq,datum,door,time:nowTime(),rows,overallStatus,type:'cleaning'};
+  cleanReports.unshift(report);
+  await persist();
+  renderCleanReportList();updateDashboard();
+  toast(`Rapport ${freq} (${datum}) opgeslagen`);
+  tasks.forEach((_,i)=>{
+    document.getElementById(prefix+'_cb_'+i).checked=false;
+    document.getElementById(prefix+'_time_'+i).value='';
+    document.getElementById(prefix+'_sign_'+i).value='';
+    document.getElementById(prefix+'_note_'+i).value='';
+  });
+}
+
+function renderTempReportList(){
+  const el=document.getElementById('temp-report-list');
+  if(!tempReports.length){el.innerHTML='<div class="empty">Nog geen temperatuurrapporten opgeslagen</div>';return;}
+  el.innerHTML=tempReports.map(r=>{
+    const nokCount=r.rows.filter(row=>row.status==='nok').length;
+    const warnCount=r.rows.filter(row=>row.status==='warn').length;
+    const measCount=r.rows.filter(row=>row.avg).length;
+    let meta=`${measCount} objecten gemeten · opgeslagen op ${r.date} om ${r.time}`;
+    if(r.paraaf) meta+=` · paraaf: ${r.paraaf}`;
+    return`<div class="report-item">
+      <div class="report-item-info">
+        <div class="report-item-title"><i class="ti ti-thermometer" aria-hidden="true" style="font-size:15px;margin-right:4px"></i>${r.week}</div>
+        <div class="report-item-meta">${meta}</div>
+        <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+          ${nokCount?`<span class="badge badge-nok">${nokCount} NOK</span>`:''}
+          ${warnCount?`<span class="badge badge-warn">${warnCount} let op</span>`:''}
+          ${!nokCount&&!warnCount?'<span class="badge badge-ok">Alles OK</span>':''}
+        </div>
+      </div>
+      <div class="report-item-actions">
+        <button class="btn-action" onclick="viewTempReport('${r.id}')"><i class="ti ti-eye" aria-hidden="true"></i> Bekijken</button>
+        <button class="btn-action" onclick="downloadTempReport('${r.id}')"><i class="ti ti-file-type-pdf" aria-hidden="true"></i> PDF</button>
+        <button class="btn-danger" onclick="deleteTempReport('${r.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCleanReportList(){
+  const el=document.getElementById('clean-report-list');
+  if(!cleanReports.length){el.innerHTML='<div class="empty">Nog geen reinigingsrapporten opgeslagen</div>';return;}
+  el.innerHTML=cleanReports.map(r=>{
+    const doneCount=r.rows.filter(row=>row.checked).length;
+    const total=r.rows.length;
+    const allDone=doneCount===total;
+    return`<div class="report-item">
+      <div class="report-item-info">
+        <div class="report-item-title"><i class="ti ti-spray" aria-hidden="true" style="font-size:15px;margin-right:4px"></i>${r.freq.charAt(0).toUpperCase()+r.freq.slice(1)} – ${r.datum}</div>
+        <div class="report-item-meta">Uitgevoerd door: ${r.door||'—'} · opgeslagen om ${r.time}</div>
+        <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="${allDone?'badge badge-ok':'badge badge-warn'}">${doneCount}/${total} taken afgevinkt</span>
+        </div>
+      </div>
+      <div class="report-item-actions">
+        <button class="btn-action" onclick="viewCleanReport('${r.id}')"><i class="ti ti-eye" aria-hidden="true"></i> Bekijken</button>
+        <button class="btn-action" onclick="downloadCleanReport('${r.id}')"><i class="ti ti-file-type-pdf" aria-hidden="true"></i> PDF</button>
+        <button class="btn-danger" onclick="deleteCleanReport('${r.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function viewTempReport(id){
+  const r=tempReports.find(x=>x.id===id);if(!r)return;
+  const lines=r.rows.filter(row=>row.avg).map(row=>`${row.object}: gem. ${row.avg}°C (${statusLabel(row.status)})${row.maatregel?' – '+row.maatregel:''}`).join('\n');
+  alert(`Rapport: ${r.week}\nDatum: ${r.date} | Paraaf: ${r.paraaf||'—'}\n\n${lines||'Geen metingen'}`);
+}
+
+function viewCleanReport(id){
+  const r=cleanReports.find(x=>x.id===id);if(!r)return;
+  const lines=r.rows.map(row=>`${row.checked?'✓':'✗'} ${row.task}${row.note?' – '+row.note:''}`).join('\n');
+  alert(`${r.freq.charAt(0).toUpperCase()+r.freq.slice(1)} – ${r.datum}\nUitgevoerd door: ${r.door||'—'}\n\n${lines}`);
+}
+
+async function deleteTempReport(id){
+  if(!confirm('Dit rapport permanent verwijderen?'))return;
+  tempReports=tempReports.filter(r=>r.id!==id);
+  await persist();renderTempReportList();updateDashboard();toast('Rapport verwijderd');
+}
+async function deleteCleanReport(id){
+  if(!confirm('Dit rapport permanent verwijderen?'))return;
+  cleanReports=cleanReports.filter(r=>r.id!==id);
+  await persist();renderCleanReportList();updateDashboard();toast('Rapport verwijderd');
+}
+
+function updateDashboard(){
+  document.getElementById('stat-temp').textContent=tempReports.length;
+  document.getElementById('stat-clean').textContent=cleanReports.length;
+  const allItems=[
+    ...tempReports.map(r=>({date:r.date,time:r.time,type:'Temperatuur',details:r.week,status:r.overallStatus})),
+    ...cleanReports.map(r=>({date:r.datum,time:r.time,type:'Reiniging',details:r.freq+' – '+r.datum,status:r.overallStatus}))
+  ].sort((a,b)=>b.time.localeCompare(a.time));
+  const tb=document.getElementById('recent-log');
+  if(!allItems.length){tb.innerHTML='<tr><td colspan="5" class="empty">Nog geen registraties</td></tr>';return;}
+  tb.innerHTML=allItems.slice(0,10).map(e=>`<tr>
+    <td>${e.date||'—'}</td><td>${e.time}</td><td>${e.type}</td>
+    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.details}</td>
+    <td>${statusBadge(e.status)}</td>
+  </tr>`).join('');
+}
+
+function makePDF(title,sections){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const dateStr=new Date().toLocaleDateString('nl-BE',{day:'numeric',month:'long',year:'numeric'});
+  const W=doc.internal.pageSize.getWidth();
+  doc.setFillColor(30,30,30);doc.rect(0,0,W,28,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('HACCP Registratie',14,12);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text(title,14,19);doc.text(dateStr,W-14,19,{align:'right'});
+  let y=36;
+  sections.forEach(sec=>{
+    if(y>260){doc.addPage();y=20;}
+    doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(30,30,30);
+    doc.text(sec.title,14,y);
+    if(sec.subtitle){y+=5;doc.setFontSize(9);doc.setFont('helvetica','italic');doc.setTextColor(100,100,100);doc.text(sec.subtitle,14,y);}
+    y+=6;
+    if(!sec.rows||!sec.rows.length){
+      doc.setFontSize(10);doc.setFont('helvetica','italic');doc.setTextColor(120,120,120);
+      doc.text('Geen registraties',14,y);y+=10;return;
+    }
+    doc.autoTable({
+      head:[sec.headers],body:sec.rows,startY:y,margin:{left:14,right:14},
+      styles:{fontSize:8,cellPadding:2.5,overflow:'linebreak'},
+      headStyles:{fillColor:[30,30,30],textColor:255,fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[245,245,242]},
+      didParseCell:(d)=>{
+        if(d.section==='body'){
+          const v=String(d.cell.raw||'');
+          if(v==='NOK'||v==='Open'){d.cell.styles.textColor=[163,45,45];d.cell.styles.fontStyle='bold';}
+          else if(v==='Let op'){d.cell.styles.textColor=[133,79,11];}
+          else if(v==='OK'||v==='Gedaan'){d.cell.styles.textColor=[59,109,17];}
+        }
+      },
+    });
+    y=doc.lastAutoTable.finalY+14;
+  });
+  const pages=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(150,150,150);doc.text(`HACCP – ${dateStr} – pagina ${i}/${pages}`,W/2,290,{align:'center'});}
+  return doc;
+}
+
+function downloadTempReport(id){
+  const r=tempReports.find(x=>x.id===id);if(!r)return;
+  const sec={
+    title:`Temperatuurrapport – ${r.week}`,
+    subtitle:`Opgeslagen: ${r.date} om ${r.time}  |  Paraaf: ${r.paraaf||'—'}  |  Koeling max 7,0°C  |  Diepvries max -18,0°C`,
+    headers:['Object','Type','1e meting','2e meting','3e meting','Gemiddeld','Status','Maatregel'],
+    rows:r.rows.map(row=>[row.object,row.type,row.m1||'—',row.m2||'—',row.m3||'—',row.avg?row.avg+'°C':'—',statusLabel(row.status),row.maatregel||''])
+  };
+  makePDF(`Temperatuurrapport – ${r.week}`,[sec]).save('haccp_temp_'+r.week.replace(/\s/g,'_')+'_'+r.date.replace(/\//g,'-')+'.pdf');
+  toast('PDF gedownload');
+}
+
+function downloadCleanReport(id){
+  const r=cleanReports.find(x=>x.id===id);if(!r)return;
+  const sec={
+    title:`Reinigingsrapport – ${r.freq} – ${r.datum}`,
+    subtitle:`Uitgevoerd door: ${r.door||'—'}  |  Opgeslagen om ${r.time}`,
+    headers:['Taak','Afgevinkt','Tijdstip','Handtekening','Opmerking'],
+    rows:r.rows.map(row=>[row.task,row.checked?'Gedaan':'Open',row.tijdstip||'—',row.handtekening||'—',row.note||''])
+  };
+  makePDF(`Reinigingsrapport – ${r.freq} – ${r.datum}`,[sec]).save('haccp_reiniging_'+r.freq+'_'+r.datum.replace(/\//g,'-')+'.pdf');
+  toast('PDF gedownload');
+}
+
+function exportAllTempCSV(){
+  if(!tempReports.length){toast('Geen rapporten om te exporteren.');return;}
+  const rows=[['Week','Datum opgeslagen','Paraaf','Object','Type','1e meting','2e meting','3e meting','Gemiddeld','Status','Maatregel']];
+  tempReports.forEach(r=>r.rows.forEach(row=>rows.push([r.week,r.date,r.paraaf||'',row.object,row.type,row.m1||'',row.m2||'',row.m3||'',row.avg||'',statusLabel(row.status),row.maatregel||''])));
+  downloadCSV(rows,'haccp_temperaturen_alle');
+}
+
+function exportAllCleanCSV(){
+  if(!cleanReports.length){toast('Geen rapporten om te exporteren.');return;}
+  const rows=[['Frequentie','Datum','Uitgevoerd door','Taak','Afgevinkt','Tijdstip','Handtekening','Opmerking']];
+  cleanReports.forEach(r=>r.rows.forEach(row=>rows.push([r.freq,r.datum,r.door||'',row.task,row.checked?'Gedaan':'Open',row.tijdstip||'',row.handtekening||'',row.note||''])));
+  downloadCSV(rows,'haccp_reiniging_alle');
+}
+
+function exportCSV(type){
+  if(type==='temp') exportAllTempCSV();
+}
+
+function downloadCSV(rows,filename){
+  const csv=rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=filename+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();toast('CSV gedownload');
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+loadData();
+</script>

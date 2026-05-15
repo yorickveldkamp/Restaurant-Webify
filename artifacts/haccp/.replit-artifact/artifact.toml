@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "HACCP Beheer"
+version = "1.0.0"
+id = "artifacts/haccp"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23151
+
+[services.development]
+run = "pnpm --filter @workspace/haccp run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/haccp", "run", "build" ]
+publicDir = "artifacts/haccp/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23151"
+BASE_PATH = "/"
