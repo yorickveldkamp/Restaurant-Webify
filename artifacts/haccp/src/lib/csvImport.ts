@@ -308,6 +308,88 @@ export function importCleanCSV(text: string): ImportResult<CleanReport> {
   return { reports, rowsRead: dataRows.length, rowsSkipped: skipped, warnings };
 }
 
+/* ────────── Cleaning import — per frequency (no Frequentie column needed) ────────── */
+
+const CLEAN_REQUIRED_PER_FREQ = ["datum", "taak"];
+
+export function importCleanCSVForFreq(
+  text: string,
+  freq: "dagelijks" | "wekelijks" | "maandelijks",
+): ImportResult<CleanReport> {
+  const rows = parseCSV(text);
+  if (rows.length < 2) {
+    return { reports: [], rowsRead: 0, rowsSkipped: 0, warnings: ["Bestand bevat geen gegevens (verwacht: kop + minstens één rij)."] };
+  }
+  const map = headerMap(rows[0]);
+  const missing = CLEAN_REQUIRED_PER_FREQ.filter(h => map[h] === undefined);
+  if (missing.length) {
+    return { reports: [], rowsRead: 0, rowsSkipped: 0, warnings: [`Verplichte kolom(men) ontbreken: ${missing.join(", ")}.`] };
+  }
+
+  const warnings: string[] = [];
+  let skipped = 0;
+
+  type Acc = { datum: string; door: string; rowsByTask: Map<string, CleanRow> };
+  const groups = new Map<string, Acc>();
+
+  const dataRows = rows.slice(1);
+  dataRows.forEach((r, idx) => {
+    const lineNo = idx + 2;
+    // Optional "frequentie" column: if present and mismatched, warn and skip
+    const freqRaw = get(r, map, "frequentie");
+    if (freqRaw) {
+      const f = normalizeFreq(freqRaw);
+      if (f && f !== freq) {
+        warnings.push(`Regel ${lineNo}: frequentie "${freqRaw}" past niet bij dit upload-veld (${freq}), overgeslagen.`);
+        skipped++; return;
+      }
+    }
+    const datum = normalizeDate(get(r, map, "datum"));
+    const door = get(r, map, "uitgevoerd door", "door", "naam");
+    const taakLabel = get(r, map, "taak");
+    const task = findTask(freq, taakLabel);
+    if (!task) {
+      warnings.push(`Regel ${lineNo}: taak "${taakLabel}" niet bekend bij ${freq}, overgeslagen.`);
+      skipped++; return;
+    }
+    if (!datum) { warnings.push(`Regel ${lineNo}: datum ontbreekt, overgeslagen.`); skipped++; return; }
+
+    const checked = parseChecked(get(r, map, "afgevinkt", "checked"));
+    const tijdstip = get(r, map, "tijdstip", "tijd");
+    const note = get(r, map, "opmerking", "opmerkingen", "note");
+
+    const key = `${datum}|${door}`;
+    let acc = groups.get(key);
+    if (!acc) { acc = { datum, door, rowsByTask: new Map() }; groups.set(key, acc); }
+    if (acc.rowsByTask.has(task)) {
+      warnings.push(`Regel ${lineNo}: dubbele invoer voor taak "${task}" in rapport ${datum} — vorige waarden overschreven.`);
+    }
+    acc.rowsByTask.set(task, { task, checked, tijdstip, handtekening: "", note });
+  });
+
+  const reports: CleanReport[] = [];
+  groups.forEach(acc => {
+    const out: CleanRow[] = CLEANING_TASKS[freq].map(task => {
+      const existing = acc.rowsByTask.get(task);
+      if (existing) return existing;
+      return { task, checked: false, tijdstip: "", handtekening: "", note: "" };
+    });
+    const overallStatus: Status = out.every(r => r.checked) ? "ok" : "warn";
+    reports.push({
+      id: uid(),
+      freq,
+      datum: acc.datum,
+      door: acc.door,
+      time: nowTime(),
+      rows: out,
+      overallStatus,
+      type: "cleaning",
+    });
+  });
+
+  return { reports, rowsRead: dataRows.length, rowsSkipped: skipped, warnings };
+}
+
 /* ────────── Templates (download as CSV) ────────── */
 
 function todayDateNL(): string {
@@ -343,4 +425,14 @@ export function downloadCleanTemplate(): void {
     });
   });
   downloadCsvText("haccp_template_reiniging.csv", rows);
+}
+
+export function downloadCleanTemplateForFreq(freq: "dagelijks" | "wekelijks" | "maandelijks"): void {
+  const headers = ["Datum", "Uitgevoerd door", "Taak", "Afgevinkt", "Tijdstip", "Opmerking"];
+  const rows: string[][] = [headers];
+  const exampleDate = todayDateNL();
+  CLEANING_TASKS[freq].forEach(task => {
+    rows.push([exampleDate, "", task, "Gedaan", "", ""]);
+  });
+  downloadCsvText(`haccp_template_reiniging_${freq}.csv`, rows);
 }

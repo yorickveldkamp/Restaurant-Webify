@@ -1,10 +1,12 @@
 import { useRef, useState } from "react";
 import { TempReport, CleanReport } from "../lib/data";
 import {
-  importTempCSV, importCleanCSV,
-  downloadTempTemplate, downloadCleanTemplate,
+  importTempCSV, importCleanCSVForFreq,
+  downloadTempTemplate, downloadCleanTemplateForFreq,
   type ImportResult,
 } from "../lib/csvImport";
+
+type CleanFreq = "dagelijks" | "wekelijks" | "maandelijks";
 
 interface Props {
   onClear: (type: "temp" | "cleaning" | "all") => void;
@@ -24,7 +26,9 @@ export function Settings({
   onImportTemp, onImportClean, onToast,
 }: Props) {
   const tempInputRef = useRef<HTMLInputElement>(null);
-  const cleanInputRef = useRef<HTMLInputElement>(null);
+  const cleanDayRef = useRef<HTMLInputElement>(null);
+  const cleanWeekRef = useRef<HTMLInputElement>(null);
+  const cleanMonthRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,14 +61,18 @@ export function Settings({
     if (tempInputRef.current) tempInputRef.current.value = "";
   };
 
-  const handleCleanFile = async (f: File | null | undefined) => {
+  const cleanRefFor = (freq: CleanFreq) =>
+    freq === "dagelijks" ? cleanDayRef : freq === "wekelijks" ? cleanWeekRef : cleanMonthRef;
+
+  const handleCleanFile = async (f: File | null | undefined, freq: CleanFreq) => {
     if (!f || busy) return;
     try {
       const text = await readFile(f);
-      const result = importCleanCSV(text);
+      const result = importCleanCSVForFreq(text, freq);
       setPreview({ kind: "clean", result, filename: f.name });
     } catch { onToast("Bestand kon niet worden gelezen."); }
-    if (cleanInputRef.current) cleanInputRef.current.value = "";
+    const ref = cleanRefFor(freq);
+    if (ref.current) ref.current.value = "";
   };
 
   const confirmImport = async () => {
@@ -121,17 +129,23 @@ export function Settings({
             </div>
           </div>
 
-          {/* Cleaning row */}
-          <div className="rounded p-3 space-y-2" style={{ background: "var(--beige-light)" }}>
-            <div className="text-xs font-semibold tracking-wider uppercase" style={{ color: "var(--text-muted)" }}>Reiniging</div>
-            <div className="flex flex-wrap gap-2 items-center">
-              <button onClick={downloadCleanTemplate} disabled={busy} className="btn-secondary text-sm">Sjabloon downloaden</button>
-              <button onClick={() => cleanInputRef.current?.click()} disabled={busy} className="btn-primary text-sm"
-                style={{ opacity: busy ? 0.5 : 1 }}>CSV uploaden…</button>
-              <input ref={cleanInputRef} type="file" accept=".csv,text/csv" className="hidden" disabled={busy}
-                onChange={e => handleCleanFile(e.target.files?.[0])} />
-            </div>
-          </div>
+          {/* Cleaning rows: per frequency */}
+          {(["dagelijks", "wekelijks", "maandelijks"] as CleanFreq[]).map(freq => {
+            const ref = cleanRefFor(freq);
+            const label = freq.charAt(0).toUpperCase() + freq.slice(1);
+            return (
+              <div key={freq} className="rounded p-3 space-y-2" style={{ background: "var(--beige-light)" }}>
+                <div className="text-xs font-semibold tracking-wider uppercase" style={{ color: "var(--text-muted)" }}>Reiniging — {label}</div>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <button onClick={() => downloadCleanTemplateForFreq(freq)} disabled={busy} className="btn-secondary text-sm">Sjabloon downloaden</button>
+                  <button onClick={() => ref.current?.click()} disabled={busy} className="btn-primary text-sm"
+                    style={{ opacity: busy ? 0.5 : 1 }}>CSV uploaden…</button>
+                  <input ref={ref} type="file" accept=".csv,text/csv" className="hidden" disabled={busy}
+                    onChange={e => handleCleanFile(e.target.files?.[0], freq)} />
+                </div>
+              </div>
+            );
+          })}
 
           {/* Preview / confirm */}
           {preview && (
