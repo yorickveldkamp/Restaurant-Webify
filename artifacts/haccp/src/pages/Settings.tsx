@@ -10,7 +10,6 @@ interface Props {
   onClear: (type: "temp" | "cleaning" | "all") => void;
   currentName: string;
   onChangeName: () => void;
-  onNavigate: (tab: "temp" | "cleaning") => void;
   onImportTemp: (reports: TempReport[]) => Promise<number>;
   onImportClean: (reports: CleanReport[]) => Promise<number>;
   onToast: (msg: string) => void;
@@ -21,7 +20,7 @@ type Preview =
   | { kind: "clean"; result: ImportResult<CleanReport>; filename: string };
 
 export function Settings({
-  onClear, currentName, onChangeName, onNavigate,
+  onClear, currentName, onChangeName,
   onImportTemp, onImportClean, onToast,
 }: Props) {
   const tempInputRef = useRef<HTMLInputElement>(null);
@@ -101,23 +100,6 @@ export function Settings({
             </div>
           </div>
           <button onClick={onChangeName} className="btn-secondary shrink-0">Wijzigen</button>
-        </div>
-      </div>
-
-      {/* ── Paper data: manual entry shortcuts ───────────────── */}
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
-          <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Papieren gegevens — handmatig invoeren</span>
-        </div>
-        <div className="px-5 py-4 space-y-3">
-          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            Open Temperatuur of Reiniging, kies bovenaan een week of datum uit het verleden (tot ~1 jaar terug)
-            en vul je papieren gegevens in. Sla op als rapport en ga door naar de volgende datum.
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <button onClick={() => onNavigate("temp")} className="btn-secondary">Temperatuur invoeren →</button>
-            <button onClick={() => onNavigate("cleaning")} className="btn-secondary">Reiniging invoeren →</button>
-          </div>
         </div>
       </div>
 
