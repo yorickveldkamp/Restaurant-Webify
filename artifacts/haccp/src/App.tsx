@@ -9,15 +9,17 @@ import { Dashboard } from "./pages/Dashboard";
 import { Temperature } from "./pages/Temperature";
 import { Cleaning } from "./pages/Cleaning";
 import { Reports } from "./pages/Reports";
+import { Settings } from "./pages/Settings";
 import { Toast } from "./components/Toast";
 
-type Tab = "dashboard" | "temp" | "cleaning" | "reports";
+type Tab = "dashboard" | "temp" | "cleaning" | "reports" | "settings";
 
 const NAV_ITEMS: { key: Tab; label: string; icon: string }[] = [
   { key: "dashboard", label: "Dashboard", icon: "📊" },
   { key: "temp", label: "Temperatuur", icon: "🌡️" },
   { key: "cleaning", label: "Reiniging", icon: "🧹" },
   { key: "reports", label: "Rapporten", icon: "📁" },
+  { key: "settings", label: "Instellingen", icon: "⚙️" },
 ];
 
 export default function App() {
@@ -59,6 +61,11 @@ export default function App() {
     showToast("Gegevens verwijderd");
   };
 
+  const navigateTo = useCallback((tab: string) => {
+    setActiveTab(tab as Tab);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       {/* Header */}
@@ -77,7 +84,7 @@ export default function App() {
 
         {/* Nav */}
         <div className="max-w-4xl mx-auto px-4">
-          <div className="flex gap-1 overflow-x-auto pb-0 scrollbar-hide">
+          <div className="flex gap-0 overflow-x-auto scrollbar-hide">
             {NAV_ITEMS.map((item) => (
               <button
                 key={item.key}
@@ -100,7 +107,11 @@ export default function App() {
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-4">
         {activeTab === "dashboard" && (
-          <Dashboard tempReports={tempReports} cleanReports={cleanReports} onClear={clearData} />
+          <Dashboard
+            tempReports={tempReports}
+            cleanReports={cleanReports}
+            onNavigate={navigateTo}
+          />
         )}
         {activeTab === "temp" && (
           <Temperature tempReports={tempReports} onSave={addTempReport} onToast={showToast} />
@@ -116,6 +127,9 @@ export default function App() {
             onDeleteClean={deleteCleanReport}
             onToast={showToast}
           />
+        )}
+        {activeTab === "settings" && (
+          <Settings onClear={clearData} />
         )}
       </main>
 
