@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import logo from "@assets/logo.png";
 import { TempReport, CleanReport, todayFull } from "./lib/data";
-import { loadTempReports, loadCleanReports, clearTempReports, clearCleanReports, clearTempDraft, clearAllCleanDrafts } from "./lib/storage";
+import { loadTempReports, loadCleanReports, clearTempReports, clearCleanReports } from "./lib/storage";
+import { apiClearAllDrafts } from "./lib/api";
 import {
   apiGetTempReports, apiAddTempReport, apiDeleteTempReport,
   apiGetCleanReports, apiAddCleanReport, apiDeleteCleanReport,
@@ -157,8 +158,8 @@ function MainApp() {
   const clearData = async (type: "temp" | "cleaning" | "all") => {
     setSaveStatus("saving");
     try {
-      if (type === "temp" || type === "all") { await apiClearTempReports(); setTempReports([]); clearTempDraft(); }
-      if (type === "cleaning" || type === "all") { await apiClearCleanReports(); setCleanReports([]); clearAllCleanDrafts(); }
+      if (type === "temp" || type === "all") { await apiClearTempReports(); setTempReports([]); await apiClearAllDrafts("temp"); }
+      if (type === "cleaning" || type === "all") { await apiClearCleanReports(); setCleanReports([]); await apiClearAllDrafts("clean:"); }
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
       showToast("Gegevens verwijderd");

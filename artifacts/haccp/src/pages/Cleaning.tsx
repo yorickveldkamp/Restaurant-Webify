@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { CLEANING_TASKS, CleanReport, CleanRow, uid, todayDate, nowTime } from "../lib/data";
 import { isoWeekNumber } from "../lib/schedule";
-import { loadDraft, saveDraft, clearDraft, cleanDraftKey } from "../lib/storage";
+import { apiGetDraft, apiPutDraft, apiDeleteDraft } from "../lib/api";
+
+const cleanDraftKey = (freq: string) => `clean:${freq}`;
 
 interface Props { onSave: (r: CleanReport) => void; onToast: (msg: string) => void; autoFillDoor?: string; }
 type Freq = "dagelijks" | "wekelijks" | "maandelijks";
@@ -82,23 +84,74 @@ function FreqPanel({ freq, onSave, onToast, autoFillDoor = "" }: { freq: Freq; o
   const [door, setDoor] = useState(autoFillDoor);
   const [tasks, setTasks] = useState<TaskState[]>(() => initTasks(freq));
   const [draftRestored, setDraftRestored] = useState(false);
+  const [draftMeta, setDraftMeta] = useState<{ updatedBy: string; updatedAt: string } | null>(null);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [remoteUpdate, setRemoteUpdate] = useState<{ data: DraftShape; meta: { updatedBy: string; updatedAt: string } } | null>(null);
   const hydrated = useRef(false);
+  const dirty = useRef(false);
+  const lastAppliedAt = useRef<string>("");
+  const fetchSeq = useRef(0);
+  const markDirty = () => { dirty.current = true; };
 
-  // Restore draft on mount (per freq)
-  useEffect(() => {
-    const draft = loadDraft<DraftShape>(cleanDraftKey(freq));
-    if (draft && Array.isArray(draft.tasks) && draft.tasks.length === CLEANING_TASKS[freq].length) {
-      setDatum(draft.datum || defaultDatum);
-      setDoor(draft.door || autoFillDoor);
-      setTasks(draft.tasks);
-      setDraftRestored(true);
+  const applyRemote = (data: DraftShape) => {
+    if (!data || !Array.isArray(data.tasks) || data.tasks.length !== CLEANING_TASKS[freq].length) return;
+    setDatum(data.datum || defaultDatum);
+    setDoor(data.door || autoFillDoor);
+    setTasks(data.tasks);
+    setDraftRestored(true);
+  };
+
+  const fetchDraft = async (opts: { initial?: boolean } = {}) => {
+    const seq = ++fetchSeq.current;
+    try {
+      const d = await apiGetDraft<DraftShape>(cleanDraftKey(freq));
+      if (seq !== fetchSeq.current) return; // stale response
+      if (!d) {
+        if (opts.initial) { setDraftMeta(null); setDraftRestored(false); lastAppliedAt.current = ""; }
+        return;
+      }
+      const remoteMs = Date.parse(d.updatedAt);
+      const lastMs = lastAppliedAt.current ? Date.parse(lastAppliedAt.current) : 0;
+      const isNewer = !Number.isNaN(remoteMs) && (Number.isNaN(lastMs) || remoteMs > lastMs);
+      if (!dirty.current && (opts.initial || isNewer)) {
+        applyRemote(d.data);
+        setDraftMeta({ updatedBy: d.updatedBy, updatedAt: d.updatedAt });
+        lastAppliedAt.current = d.updatedAt;
+        setRemoteUpdate(null);
+      } else if (dirty.current && isNewer) {
+        setRemoteUpdate({ data: d.data, meta: { updatedBy: d.updatedBy, updatedAt: d.updatedAt } });
+      }
+    } catch {
+      onToast("Kon tussentijdse versie niet laden van server");
     }
+  };
+
+  const acceptRemote = () => {
+    if (!remoteUpdate) return;
+    applyRemote(remoteUpdate.data);
+    setDraftMeta(remoteUpdate.meta);
+    lastAppliedAt.current = remoteUpdate.meta.updatedAt;
+    dirty.current = false;
+    setRemoteUpdate(null);
+  };
+  const dismissRemote = () => setRemoteUpdate(null);
+
+  // Restore draft on mount (per freq) + on window focus
+  useEffect(() => {
+    dirty.current = false;
+    lastAppliedAt.current = "";
+    setRemoteUpdate(null);
+    void fetchDraft({ initial: true });
+    const onFocus = () => { void fetchDraft(); };
+    window.addEventListener("focus", onFocus);
     hydrated.current = true;
+    return () => window.removeEventListener("focus", onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freq]);
 
-  const update = (i: number, field: keyof TaskState, value: string | boolean) =>
-    setTasks(prev => prev.map((t, idx) => {
+  const update = (i: number, field: keyof TaskState, value: string | boolean) => {
+    markDirty();
+    return setTasks(prev => prev.map((t, idx) => {
       if (idx !== i) return t;
       const next = { ...t, [field]: value };
       // When checking off a task, auto-fill the time with the current time
@@ -108,6 +161,7 @@ function FreqPanel({ freq, onSave, onToast, autoFillDoor = "" }: { freq: Freq; o
       }
       return next;
     }));
+  };
 
   const periodLabel = (() => {
     if (freq === "dagelijks")  return dayOptions.find(o => o.value === datum)?.label ?? datum;
@@ -125,19 +179,42 @@ function FreqPanel({ freq, onSave, onToast, autoFillDoor = "" }: { freq: Freq; o
     setTasks(initTasks(freq));
     setDoor(autoFillDoor);
     setDatum(defaultDatum);
-    clearDraft(cleanDraftKey(freq));
     setDraftRestored(false);
+    setDraftMeta(null);
+    setRemoteUpdate(null);
+    dirty.current = false;
+    lastAppliedAt.current = "";
+    void apiDeleteDraft(cleanDraftKey(freq)).catch(() => {});
   };
 
-  const saveDraftNow = () => {
-    saveDraft<DraftShape>(cleanDraftKey(freq), { datum, door, tasks });
-    onToast("Tussentijds opgeslagen — je kan later verder");
+  const saveDraftNow = async () => {
+    setDraftBusy(true);
+    try {
+      const saved = await apiPutDraft<DraftShape>(cleanDraftKey(freq), { datum, door, tasks }, autoFillDoor || door || "");
+      setDraftMeta({ updatedBy: saved.updatedBy, updatedAt: saved.updatedAt });
+      lastAppliedAt.current = saved.updatedAt;
+      dirty.current = false;
+      setRemoteUpdate(null);
+      setDraftRestored(true);
+      onToast("Tussentijds opgeslagen op de server — iedereen ziet de voortgang");
+    } catch {
+      onToast("Tussentijds opslaan mislukt — probeer opnieuw");
+    } finally { setDraftBusy(false); }
   };
 
-  const discardDraft = () => {
-    if (!confirm("Tussentijdse versie verwijderen?")) return;
-    resetForm();
-    onToast("Tussentijdse versie verwijderd");
+  const discardDraft = async () => {
+    if (!confirm("Tussentijdse versie verwijderen voor iedereen?")) return;
+    setDraftBusy(true);
+    try {
+      await apiDeleteDraft(cleanDraftKey(freq));
+      setTasks(initTasks(freq));
+      setDoor(autoFillDoor);
+      setDatum(defaultDatum);
+      setDraftRestored(false);
+      setDraftMeta(null);
+      onToast("Tussentijdse versie verwijderd");
+    } catch { onToast("Verwijderen mislukt"); }
+    finally { setDraftBusy(false); }
   };
 
   const save = () => {
@@ -161,13 +238,42 @@ function FreqPanel({ freq, onSave, onToast, autoFillDoor = "" }: { freq: Freq; o
 
   return (
     <div className="space-y-3">
+      {remoteUpdate && (
+        <div className="px-4 py-2.5 text-xs flex items-center justify-between gap-3"
+          style={{ background: "#eaf3fb", borderLeft: "3px solid #3a7bd4", color: "#1c4a82" }}>
+          <span>
+            Een collega heeft de tussentijdse versie net bijgewerkt
+            {remoteUpdate.meta.updatedBy ? ` (${remoteUpdate.meta.updatedBy})` : ""}.
+            Je hebt zelf wijzigingen openstaan.
+          </span>
+          <span className="flex gap-3 shrink-0">
+            <button onClick={acceptRemote} className="text-xs underline"
+              style={{ color: "#1c4a82", background: "none", border: "none", cursor: "pointer" }}>
+              Versie laden (mijn wijzigingen vervallen)
+            </button>
+            <button onClick={dismissRemote} className="text-xs underline"
+              style={{ color: "#1c4a82", background: "none", border: "none", cursor: "pointer" }}>
+              Negeren
+            </button>
+          </span>
+        </div>
+      )}
+
       {draftRestored && (
         <div className="px-4 py-2.5 text-xs flex items-center justify-between gap-3"
           style={{ background: "#fff8e6", borderLeft: "3px solid #d4a73a", color: "#6b5215" }}>
-          <span>Tussentijdse versie hersteld — vink alle taken af om als rapport op te slaan.</span>
-          <button onClick={discardDraft}
+          <span>
+            Tussentijdse versie geladen — vink alle taken af om als rapport op te slaan.
+            {draftMeta && (draftMeta.updatedBy || draftMeta.updatedAt) && (
+              <> {" "}<em style={{ fontStyle: "normal", opacity: 0.8 }}>
+                (laatst bijgewerkt{draftMeta.updatedBy ? ` door ${draftMeta.updatedBy}` : ""}
+                {draftMeta.updatedAt ? ` om ${new Date(draftMeta.updatedAt).toLocaleString("nl-BE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""})
+              </em></>
+            )}
+          </span>
+          <button onClick={discardDraft} disabled={draftBusy}
             className="text-xs underline shrink-0"
-            style={{ color: "#6b5215", background: "none", border: "none", cursor: "pointer" }}>
+            style={{ color: "#6b5215", background: "none", border: "none", cursor: draftBusy ? "wait" : "pointer", opacity: draftBusy ? 0.5 : 1 }}>
             Verwijderen
           </button>
         </div>
@@ -179,14 +285,14 @@ function FreqPanel({ freq, onSave, onToast, autoFillDoor = "" }: { freq: Freq; o
           <div className="flex flex-wrap gap-4 items-end">
             <div>
               <label className="block text-xs mb-1.5 tracking-wide uppercase" style={{ color: "var(--text-muted)", fontSize: "11px" }}>{pickerLabel}</label>
-              <select value={datum} onChange={e => setDatum(e.target.value)}
+              <select value={datum} onChange={e => { markDirty(); setDatum(e.target.value); }}
                 className="input-brand" style={{ minWidth: freq === "dagelijks" ? 220 : 180 }}>
                 {options.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
               </select>
             </div>
             <div>
               <label className="block text-xs mb-1.5 tracking-wide uppercase" style={{ color: "var(--text-muted)", fontSize: "11px" }}>Uitgevoerd door</label>
-              <input type="text" value={door} onChange={e => setDoor(e.target.value)}
+              <input type="text" value={door} onChange={e => { markDirty(); setDoor(e.target.value); }}
                 placeholder="Naam" className="input-brand" style={{ width: 160 }} />
             </div>
             <div className="ml-auto self-center text-sm">
@@ -266,7 +372,10 @@ function FreqPanel({ freq, onSave, onToast, autoFillDoor = "" }: { freq: Freq; o
             title={isComplete ? "" : "Vink alle taken aan met tijd + vul je naam in"}>
             Opslaan als rapport
           </button>
-          <button onClick={saveDraftNow} className="btn-secondary">Tussentijds opslaan</button>
+          <button onClick={saveDraftNow} disabled={draftBusy} className="btn-secondary"
+            style={{ opacity: draftBusy ? 0.5 : 1 }}>
+            {draftBusy ? "Bezig…" : "Tussentijds opslaan"}
+          </button>
           {!isComplete && (
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               {!allTasksDone && <>Nog {total - fullyDoneCount} ta{total - fullyDoneCount === 1 ? "ak" : "ken"} af te vinken (met tijd){!door.trim() ? " · " : ""}</>}

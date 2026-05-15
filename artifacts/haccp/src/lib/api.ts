@@ -77,3 +77,45 @@ export async function apiClearCleanReports(): Promise<void> {
 }
 
 void norm; // suppress unused warning
+
+/* ── Drafts (server-shared intermediate saves) ─────────── */
+
+export interface ServerDraft<T = unknown> {
+  key: string;
+  data: T;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export async function apiGetDraft<T = unknown>(key: string): Promise<ServerDraft<T> | null> {
+  const res = await fetch(`${BASE}/drafts/${encodeURIComponent(key)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Failed to load draft");
+  return await res.json() as ServerDraft<T>;
+}
+
+export async function apiPutDraft<T = unknown>(key: string, data: T, updatedBy: string): Promise<ServerDraft<T>> {
+  const res = await fetch(`${BASE}/drafts/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data, updatedBy }),
+  });
+  if (!res.ok) throw new Error("Failed to save draft");
+  return await res.json() as ServerDraft<T>;
+}
+
+export async function apiDeleteDraft(key: string): Promise<void> {
+  const res = await fetch(`${BASE}/drafts/${encodeURIComponent(key)}`, { method: "DELETE" });
+  if (!res.ok && res.status !== 404) throw new Error("Failed to delete draft");
+}
+
+export async function apiClearAllDrafts(prefix?: string): Promise<void> {
+  const res = await fetch(`${BASE}/drafts`);
+  if (!res.ok) return;
+  const list = await res.json() as Array<{ key: string }>;
+  await Promise.all(
+    list
+      .filter(d => !prefix || d.key.startsWith(prefix))
+      .map(d => apiDeleteDraft(d.key))
+  );
+}

@@ -3,7 +3,9 @@ import { OBJECTS, TempRow, TempReport, statusForTemp, worstStatus, uid, todayDat
 import { isoWeekNumber } from "../lib/schedule";
 import { Badge } from "../components/Badge";
 import { exportAllTempCSV } from "../lib/pdf";
-import { loadDraft, saveDraft, clearDraft, tempDraftKey } from "../lib/storage";
+import { apiGetDraft, apiPutDraft, apiDeleteDraft } from "../lib/api";
+
+const TEMP_DRAFT_KEY = "temp";
 
 interface Props {
   tempReports: TempReport[];
@@ -43,11 +45,16 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
   const [paraaf, setParaaf] = useState(autoFillParaaf);
   const [measurements, setMeasurements] = useState<Measurements>(initM);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [draftMeta, setDraftMeta] = useState<{ updatedBy: string; updatedAt: string } | null>(null);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [remoteUpdate, setRemoteUpdate] = useState<{ data: DraftShape; meta: { updatedBy: string; updatedAt: string } } | null>(null);
   const hydrated = useRef(false);
+  const dirty = useRef(false);
+  const lastAppliedAt = useRef<string>("");
+  const fetchSeq = useRef(0);
+  const markDirty = () => { dirty.current = true; };
 
-  // Restore draft on mount, with shape validation against current OBJECTS
-  useEffect(() => {
-    const draft = loadDraft<DraftShape>(tempDraftKey());
+  const applyDraft = (draft: DraftShape | null) => {
     if (draft && draft.measurements && typeof draft.measurements === "object") {
       const sanitized = initM();
       OBJECTS.forEach(o => {
@@ -66,12 +73,59 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
       setMeasurements(sanitized);
       setDraftRestored(true);
     }
+  };
+
+  const fetchDraft = async (opts: { initial?: boolean } = {}) => {
+    const seq = ++fetchSeq.current;
+    try {
+      const d = await apiGetDraft<DraftShape>(TEMP_DRAFT_KEY);
+      if (seq !== fetchSeq.current) return; // stale response
+      if (!d) {
+        if (opts.initial) { setDraftMeta(null); setDraftRestored(false); lastAppliedAt.current = ""; }
+        return;
+      }
+      // Only auto-apply if (a) we haven't applied anything yet, or (b) form is clean and the remote is newer
+      const remoteMs = Date.parse(d.updatedAt);
+      const lastMs = lastAppliedAt.current ? Date.parse(lastAppliedAt.current) : 0;
+      const isNewer = !Number.isNaN(remoteMs) && (Number.isNaN(lastMs) || remoteMs > lastMs);
+      if (!dirty.current && (opts.initial || isNewer)) {
+        applyDraft(d.data);
+        setDraftMeta({ updatedBy: d.updatedBy, updatedAt: d.updatedAt });
+        lastAppliedAt.current = d.updatedAt;
+        setRemoteUpdate(null);
+      } else if (dirty.current && isNewer) {
+        // Don't clobber local edits; surface a banner so user can choose.
+        setRemoteUpdate({ data: d.data, meta: { updatedBy: d.updatedBy, updatedAt: d.updatedAt } });
+      }
+    } catch {
+      onToast("Kon tussentijdse versie niet laden van server");
+    }
+  };
+
+  const acceptRemote = () => {
+    if (!remoteUpdate) return;
+    applyDraft(remoteUpdate.data);
+    setDraftMeta(remoteUpdate.meta);
+    lastAppliedAt.current = remoteUpdate.meta.updatedAt;
+    dirty.current = false;
+    setRemoteUpdate(null);
+  };
+  const dismissRemote = () => setRemoteUpdate(null);
+
+  // Restore draft on mount + when window regains focus (so colleagues' updates appear)
+  useEffect(() => {
+    void fetchDraft({ initial: true });
+    const onFocus = () => { void fetchDraft(); };
+    window.addEventListener("focus", onFocus);
     hydrated.current = true;
+    return () => window.removeEventListener("focus", onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const update = (id: string, field: "m1" | "m2" | "m3" | "maatregel", value: string) =>
+  const update = (id: string, field: "m1" | "m2" | "m3" | "maatregel", value: string) => {
+    markDirty();
     setMeasurements(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  };
 
   const getRowStatus = (id: string): Status => {
     const obj = OBJECTS.find(o => o.id === id)!;
@@ -92,19 +146,42 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
     setMeasurements(initM());
     setParaaf(autoFillParaaf);
     setWeek(defaultWeek);
-    clearDraft(tempDraftKey());
     setDraftRestored(false);
+    setDraftMeta(null);
+    setRemoteUpdate(null);
+    dirty.current = false;
+    lastAppliedAt.current = "";
+    void apiDeleteDraft(TEMP_DRAFT_KEY).catch(() => {});
   };
 
-  const saveDraftNow = () => {
-    saveDraft<DraftShape>(tempDraftKey(), { week, paraaf, measurements });
-    onToast("Tussentijds opgeslagen — je kan later verder");
+  const saveDraftNow = async () => {
+    setDraftBusy(true);
+    try {
+      const saved = await apiPutDraft<DraftShape>(TEMP_DRAFT_KEY, { week, paraaf, measurements }, autoFillParaaf || paraaf || "");
+      setDraftMeta({ updatedBy: saved.updatedBy, updatedAt: saved.updatedAt });
+      lastAppliedAt.current = saved.updatedAt;
+      dirty.current = false;
+      setRemoteUpdate(null);
+      setDraftRestored(true);
+      onToast("Tussentijds opgeslagen op de server — iedereen ziet de voortgang");
+    } catch {
+      onToast("Tussentijds opslaan mislukt — probeer opnieuw");
+    } finally { setDraftBusy(false); }
   };
 
-  const discardDraft = () => {
-    if (!confirm("Tussentijdse versie verwijderen?")) return;
-    resetForm();
-    onToast("Tussentijdse versie verwijderd");
+  const discardDraft = async () => {
+    if (!confirm("Tussentijdse versie verwijderen voor iedereen?")) return;
+    setDraftBusy(true);
+    try {
+      await apiDeleteDraft(TEMP_DRAFT_KEY);
+      setMeasurements(initM());
+      setParaaf(autoFillParaaf);
+      setWeek(defaultWeek);
+      setDraftRestored(false);
+      setDraftMeta(null);
+      onToast("Tussentijdse versie verwijderd");
+    } catch { onToast("Verwijderen mislukt"); }
+    finally { setDraftBusy(false); }
   };
 
   const saveReport = () => {
@@ -136,13 +213,42 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
         <strong style={{ color: "var(--text)" }}>Diepvries:</strong> max −18,0°C | afkeur ≥ −17,9°C
       </div>
 
+      {remoteUpdate && (
+        <div className="px-4 py-2.5 text-xs flex items-center justify-between gap-3"
+          style={{ background: "#eaf3fb", borderLeft: "3px solid #3a7bd4", color: "#1c4a82" }}>
+          <span>
+            Een collega heeft de tussentijdse versie net bijgewerkt
+            {remoteUpdate.meta.updatedBy ? ` (${remoteUpdate.meta.updatedBy})` : ""}.
+            Je hebt zelf wijzigingen openstaan.
+          </span>
+          <span className="flex gap-3 shrink-0">
+            <button onClick={acceptRemote} className="text-xs underline"
+              style={{ color: "#1c4a82", background: "none", border: "none", cursor: "pointer" }}>
+              Versie laden (mijn wijzigingen vervallen)
+            </button>
+            <button onClick={dismissRemote} className="text-xs underline"
+              style={{ color: "#1c4a82", background: "none", border: "none", cursor: "pointer" }}>
+              Negeren
+            </button>
+          </span>
+        </div>
+      )}
+
       {draftRestored && (
         <div className="px-4 py-2.5 text-xs flex items-center justify-between gap-3"
           style={{ background: "#fff8e6", borderLeft: "3px solid #d4a73a", color: "#6b5215" }}>
-          <span>Tussentijdse versie hersteld — vul aan en sla op als rapport zodra alles ingevuld is.</span>
-          <button onClick={discardDraft}
+          <span>
+            Tussentijdse versie geladen — vul aan en sla op als rapport zodra alles ingevuld is.
+            {draftMeta && (draftMeta.updatedBy || draftMeta.updatedAt) && (
+              <> {" "}<em style={{ fontStyle: "normal", opacity: 0.8 }}>
+                (laatst bijgewerkt{draftMeta.updatedBy ? ` door ${draftMeta.updatedBy}` : ""}
+                {draftMeta.updatedAt ? ` om ${new Date(draftMeta.updatedAt).toLocaleString("nl-BE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""})
+              </em></>
+            )}
+          </span>
+          <button onClick={discardDraft} disabled={draftBusy}
             className="text-xs underline shrink-0"
-            style={{ color: "#6b5215", background: "none", border: "none", cursor: "pointer" }}>
+            style={{ color: "#6b5215", background: "none", border: "none", cursor: draftBusy ? "wait" : "pointer", opacity: draftBusy ? 0.5 : 1 }}>
             Verwijderen
           </button>
         </div>
@@ -154,7 +260,7 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
           <div className="flex flex-wrap gap-4 items-end">
             <div>
               <label className="block text-xs mb-1.5 tracking-wide uppercase" style={{ color: "var(--text-muted)", fontSize: "11px" }}>Week</label>
-              <select value={week} onChange={e => setWeek(e.target.value)} className="input-brand" style={{ minWidth: 180 }}>
+              <select value={week} onChange={e => { markDirty(); setWeek(e.target.value); }} className="input-brand" style={{ minWidth: 180 }}>
                 {weekOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -162,7 +268,7 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
             </div>
             <div>
               <label className="block text-xs mb-1.5 tracking-wide uppercase" style={{ color: "var(--text-muted)", fontSize: "11px" }}>Paraaf</label>
-              <input type="text" value={paraaf} onChange={e => setParaaf(e.target.value)}
+              <input type="text" value={paraaf} onChange={e => { markDirty(); setParaaf(e.target.value); }}
                 placeholder="initialen" className="input-brand" style={{ width: 100 }} />
             </div>
             <div className="ml-auto self-center text-sm">
@@ -263,7 +369,10 @@ export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" 
             title={isComplete ? "" : "Vul eerst alle metingen + paraaf in"}>
             Opslaan als rapport
           </button>
-          <button onClick={saveDraftNow} className="btn-secondary">Tussentijds opslaan</button>
+          <button onClick={saveDraftNow} disabled={draftBusy} className="btn-secondary"
+            style={{ opacity: draftBusy ? 0.5 : 1 }}>
+            {draftBusy ? "Bezig…" : "Tussentijds opslaan"}
+          </button>
           <button onClick={() => { if (!tempReports.length) { onToast("Geen rapporten."); return; } exportAllTempCSV(tempReports); onToast("CSV gedownload"); }} className="btn-secondary">CSV exporteren</button>
           {!isComplete && (
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
