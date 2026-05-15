@@ -43,9 +43,36 @@ function detectDelimiter(text: string): "," | ";" | "\t" {
   return ",";
 }
 
+/** Parse a single raw string as a comma-delimited CSV row (RFC-4180 quoting). */
+function parseCSVRow(s: string): string[] {
+  const fields: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { fields.push(field); field = ""; }
+      else field += c;
+    }
+  }
+  fields.push(field);
+  return fields;
+}
+
 /** Parse CSV text into rows of fields. Handles quoted fields, embedded delimiters,
  *  doubled-quote escaping, CRLF/LF, and a leading UTF-8 BOM. Auto-detects the
- *  delimiter (comma, semicolon, or tab) from the first line. */
+ *  delimiter (comma, semicolon, or tab) from the first line.
+ *
+ *  Also handles "double-encoded" files (e.g. from certain Excel exports) where
+ *  each entire row is wrapped in outer quotes and inner fields are double-escaped.
+ *  In that case every parsed row has exactly 1 column; we re-parse each inner
+ *  value as a comma-delimited row to recover the actual fields. */
 export function parseCSV(text: string): string[][] {
   // Strip BOM
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
@@ -73,6 +100,15 @@ export function parseCSV(text: string): string[][] {
   if (field.length || row.length) { row.push(field); rows.push(row); }
   // drop trailing empty rows
   while (rows.length && rows[rows.length - 1].every(c => c === "")) rows.pop();
+
+  // Unwrap double-encoded files: every row is a single field whose inner content
+  // is itself comma-delimited (e.g. `"colA,""colB"",""colC"""` → colA,"colB","colC").
+  if (rows.length >= 2 && rows.every(r => r.length === 1)) {
+    const unwrapped = rows.map(r => parseCSVRow(r[0]));
+    // Only accept the unwrapped result if we got more than 1 column per row
+    if (unwrapped[0].length > 1) return unwrapped;
+  }
+
   return rows;
 }
 
