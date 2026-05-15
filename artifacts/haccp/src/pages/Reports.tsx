@@ -10,6 +10,7 @@ interface Props {
   onToast: (msg: string) => void;
 }
 type Tab = "temp" | "clean" | "maand";
+type CleanFreq = "dagelijks" | "wekelijks" | "maandelijks";
 
 function MonthlyPanel({ tempReports, cleanReports, onToast }: { tempReports: TempReport[]; cleanReports: CleanReport[]; onToast: (m: string) => void }) {
   const now = new Date();
@@ -86,7 +87,9 @@ function MonthlyPanel({ tempReports, cleanReports, onToast }: { tempReports: Tem
 
 export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean, onToast }: Props) {
   const [tab, setTab] = useState<Tab>("temp");
+  const [cleanFreq, setCleanFreq] = useState<CleanFreq>("dagelijks");
   const tabs: { key: Tab; label: string }[] = [{ key: "temp", label: "Temperatuur" }, { key: "clean", label: "Reiniging" }, { key: "maand", label: "Maandoverzicht" }];
+  const cleanFreqs: { key: CleanFreq; label: string }[] = [{ key: "dagelijks", label: "Dagelijks" }, { key: "wekelijks", label: "Wekelijks" }, { key: "maandelijks", label: "Maandelijks" }];
 
   const delT = (id: string) => { if (confirm("Verwijderen?")) { onDeleteTemp(id); onToast("Rapport verwijderd"); } };
   const delC = (id: string) => { if (confirm("Verwijderen?")) { onDeleteClean(id); onToast("Rapport verwijderd"); } };
@@ -143,35 +146,72 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
 
       {tab === "clean" && (
         <div className="card overflow-hidden">
-          <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
-            <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Reinigingsrapporten</span>
-            <button onClick={() => { if (!cleanReports.length) { onToast("Geen rapporten."); return; } exportAllCleanCSV(cleanReports); onToast("CSV gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">CSV exporteren</button>
+          {/* Submenu: dagelijks / wekelijks / maandelijks */}
+          <div style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+            <div className="px-5 pt-3 pb-0 flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Reinigingsrapporten</span>
+              <button
+                onClick={() => {
+                  const filtered = cleanReports.filter(r => r.freq === cleanFreq);
+                  if (!filtered.length) { onToast("Geen rapporten."); return; }
+                  exportAllCleanCSV(filtered);
+                  onToast("CSV gedownload");
+                }}
+                className="btn-secondary text-xs py-1.5 px-3"
+              >CSV exporteren</button>
+            </div>
+            <div className="flex px-5 pt-2">
+              {cleanFreqs.map(f => (
+                <button key={f.key} onClick={() => setCleanFreq(f.key)}
+                  className="px-4 py-1.5 text-xs transition-all"
+                  style={{
+                    background: cleanFreq === f.key ? "var(--sage)" : "transparent",
+                    color: cleanFreq === f.key ? "white" : "var(--text-muted)",
+                    fontWeight: cleanFreq === f.key ? 600 : 400,
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: "4px 4px 0 0",
+                  }}>
+                  {f.label}
+                  <span className="ml-1.5 opacity-70" style={{ fontSize: 10 }}>
+                    ({cleanReports.filter(r => r.freq === f.key).length})
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-          {cleanReports.length === 0 ? <div className="px-5 py-8 text-center text-sm italic" style={{ color: "var(--text-muted)" }}>Nog geen reinigingsrapporten opgeslagen</div> : (
-            <div>
-              {cleanReports.map((r, i) => {
-                const done = r.rows.filter(row => row.checked).length;
-                const total = r.rows.length;
-                return (
-                  <div key={r.id} className="px-5 py-4 flex flex-wrap items-start justify-between gap-3"
-                    style={{ borderBottom: i < cleanReports.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{r.freq.charAt(0).toUpperCase() + r.freq.slice(1)} — {r.datum}</div>
-                      <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Door: {r.door || "—"} · {r.time}</div>
-                      <div className="mt-1.5">
-                        <span className={done === total ? "badge-ok" : "badge-warn"}>{done}/{total} taken afgevinkt</span>
+          {/* Report list filtered by freq */}
+          {(() => {
+            const filtered = cleanReports.filter(r => r.freq === cleanFreq);
+            if (filtered.length === 0) {
+              return <div className="px-5 py-8 text-center text-sm italic" style={{ color: "var(--text-muted)" }}>Nog geen {cleanFreq}e reinigingsrapporten opgeslagen</div>;
+            }
+            return (
+              <div>
+                {filtered.map((r, i) => {
+                  const done = r.rows.filter(row => row.checked).length;
+                  const total = r.rows.length;
+                  return (
+                    <div key={r.id} className="px-5 py-4 flex flex-wrap items-start justify-between gap-3"
+                      style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{r.datum}</div>
+                        <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Door: {r.door || "—"} · {r.time}</div>
+                        <div className="mt-1.5">
+                          <span className={done === total ? "badge-ok" : "badge-warn"}>{done}/{total} taken afgevinkt</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <button onClick={() => viewC(r)} className="btn-secondary text-xs py-1.5 px-3">Bekijken</button>
+                        <button onClick={() => { downloadCleanReport(r); onToast("PDF gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">PDF</button>
+                        <button onClick={() => delC(r.id)} className="btn-danger text-xs py-1.5 px-3">✕</button>
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <button onClick={() => viewC(r)} className="btn-secondary text-xs py-1.5 px-3">Bekijken</button>
-                      <button onClick={() => { downloadCleanReport(r); onToast("PDF gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">PDF</button>
-                      <button onClick={() => delC(r.id)} className="btn-danger text-xs py-1.5 px-3">✕</button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
