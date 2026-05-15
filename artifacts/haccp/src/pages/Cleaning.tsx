@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { CLEANING_TASKS, CleanReport, CleanRow, uid, todayDate, nowTime } from "../lib/data";
 import { isoWeekNumber } from "../lib/schedule";
 
-interface Props { onSave: (r: CleanReport) => void; onToast: (msg: string) => void; }
+interface Props { onSave: (r: CleanReport) => void; onToast: (msg: string) => void; autoFillDoor?: string; }
 type Freq = "dagelijks" | "wekelijks" | "maandelijks";
 type TaskState = { checked: boolean; tijdstip: string; note: string };
 
@@ -72,7 +72,7 @@ function initTasks(freq: Freq): TaskState[] {
   return CLEANING_TASKS[freq].map(() => ({ checked: false, tijdstip: "", note: "" }));
 }
 
-function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanReport) => void; onToast: (msg: string) => void }) {
+function FreqPanel({ freq, onSave, onToast, autoFillDoor = "" }: { freq: Freq; onSave: (r: CleanReport) => void; onToast: (msg: string) => void; autoFillDoor?: string }) {
   const dayOptions   = useMemo(buildDayOptions,   []);
   const weekOptions  = useMemo(buildWeekOptions,  []);
   const monthOptions = useMemo(buildMonthOptions, []);
@@ -84,7 +84,7 @@ function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanRep
   })();
 
   const [datum, setDatum] = useState(defaultDatum);
-  const [door, setDoor] = useState("");
+  const [door, setDoor] = useState(autoFillDoor);
   const [tasks, setTasks] = useState<TaskState[]>(() => initTasks(freq));
 
   const update = (i: number, field: keyof TaskState, value: string | boolean) =>
@@ -108,7 +108,7 @@ function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanRep
     onSave({ id: uid(), freq, datum, door, time: nowTime(), rows, overallStatus, type: "cleaning" });
     onToast(`Rapport ${freq} — ${periodLabel} opgeslagen`);
     setTasks(initTasks(freq));
-    setDoor("");
+    setDoor(autoFillDoor);
   };
 
   const doneCount = tasks.filter(t => t.checked).length;
@@ -225,7 +225,7 @@ function FreqPanel({ freq, onSave, onToast }: { freq: Freq; onSave: (r: CleanRep
   );
 }
 
-export function Cleaning({ onSave, onToast }: Props) {
+export function Cleaning({ onSave, onToast, autoFillDoor = "" }: Props) {
   const [freq, setFreq] = useState<Freq>("dagelijks");
   const freqs: { key: Freq; label: string }[] = [
     { key: "dagelijks", label: "Dagelijks" },
@@ -250,7 +250,7 @@ export function Cleaning({ onSave, onToast }: Props) {
           </button>
         ))}
       </div>
-      <FreqPanel key={freq} freq={freq} onSave={onSave} onToast={onToast} />
+      <FreqPanel key={freq} freq={freq} onSave={onSave} onToast={onToast} autoFillDoor={autoFillDoor} />
     </div>
   );
 }

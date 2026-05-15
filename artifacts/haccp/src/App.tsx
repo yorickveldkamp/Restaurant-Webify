@@ -7,6 +7,8 @@ import {
   apiGetCleanReports, apiAddCleanReport, apiDeleteCleanReport,
   apiClearTempReports, apiClearCleanReports,
 } from "./lib/api";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Temperature } from "./pages/Temperature";
 import { Cleaning } from "./pages/Cleaning";
@@ -24,7 +26,8 @@ const NAV: { key: Tab; label: string }[] = [
   { key: "settings", label: "Instellingen" },
 ];
 
-export default function App() {
+function MainApp() {
+  const { user, logout, authLoaded } = useAuth();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [tempReports, setTempReports] = useState<TempReport[]>([]);
   const [cleanReports, setCleanReports] = useState<CleanReport[]>([]);
@@ -36,34 +39,28 @@ export default function App() {
   const showToast = useCallback((msg: string) => setToast(msg), []);
   const clearToast = useCallback(() => setToast(""), []);
 
-  /* Load all data from server on mount, migrate localStorage if needed */
   useEffect(() => {
+    if (!user) return;
     (async () => {
+      setLoading(true);
       try {
         const [serverTemp, serverClean] = await Promise.all([
           apiGetTempReports(),
           apiGetCleanReports(),
         ]);
 
-        /* One-time migration: push localStorage data that isn't on the server yet */
         if (!migrated.current) {
           migrated.current = true;
           const localTemp = loadTempReports();
           const localClean = loadCleanReports();
           const serverTempIds = new Set(serverTemp.map(r => r.id));
           const serverCleanIds = new Set(serverClean.map(r => r.id));
-
           const newTemp = localTemp.filter(r => !serverTempIds.has(r.id));
           const newClean = localClean.filter(r => !serverCleanIds.has(r.id));
-
           if (newTemp.length || newClean.length) {
-            await Promise.all([
-              ...newTemp.map(r => apiAddTempReport(r)),
-              ...newClean.map(r => apiAddCleanReport(r)),
-            ]);
+            await Promise.all([...newTemp.map(apiAddTempReport), ...newClean.map(apiAddCleanReport)]);
             clearTempReports();
             clearCleanReports();
-            /* Reload after migration */
             const [mt, mc] = await Promise.all([apiGetTempReports(), apiGetCleanReports()]);
             setTempReports(mt);
             setCleanReports(mc);
@@ -75,16 +72,13 @@ export default function App() {
           setTempReports(serverTemp);
           setCleanReports(serverClean);
         }
-      } catch (e) {
-        console.error(e);
-        showToast("Kon server niet bereiken — lokale data wordt gebruikt");
-        setTempReports(loadTempReports());
-        setCleanReports(loadCleanReports());
+      } catch {
+        showToast("Kon rapporten niet laden");
       } finally {
         setLoading(false);
       }
     })();
-  }, [showToast]);
+  }, [user, showToast]);
 
   const addTemp = async (r: TempReport) => {
     setSaveStatus("saving");
@@ -116,18 +110,14 @@ export default function App() {
     try {
       await apiDeleteTempReport(id);
       setTempReports(prev => prev.filter(r => r.id !== id));
-    } catch {
-      showToast("Fout bij verwijderen");
-    }
+    } catch { showToast("Fout bij verwijderen"); }
   };
 
   const delClean = async (id: string) => {
     try {
       await apiDeleteCleanReport(id);
       setCleanReports(prev => prev.filter(r => r.id !== id));
-    } catch {
-      showToast("Fout bij verwijderen");
-    }
+    } catch { showToast("Fout bij verwijderen"); }
   };
 
   const clearData = async (type: "temp" | "cleaning" | "all") => {
@@ -149,12 +139,17 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
   const statusText = saveStatus === "saving" ? "Opslaan…" : saveStatus === "saved" ? "Opgeslagen" : saveStatus === "error" ? "Fout" : "Verbonden";
   const statusColor = saveStatus === "error" ? "#c0392b" : saveStatus === "saving" ? "#B0A795" : "var(--sage-dark)";
 
+  if (!authLoaded || (authLoaded && !user)) return null;
+
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)", fontFamily: "'Jost', sans-serif" }}>
-      {/* Header */}
       <header className="sticky top-0 z-40" style={{ background: "var(--card)", borderBottom: "2px solid var(--sage)" }}>
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between py-3">
@@ -169,18 +164,25 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="text-right hidden sm:block">
+            <div className="text-right hidden sm:flex flex-col items-end gap-0.5">
               <div className="text-xs" style={{ color: "var(--text-muted)" }}>{todayFull()}</div>
-              <div className="text-xs mt-0.5" style={{ color: statusColor }}>
-                {saveStatus === "saving" ? "↑ " : saveStatus === "error" ? "✕ " : "☁ "}{statusText}
+              <div className="flex items-center gap-2">
+                <span className="text-xs" style={{ color: statusColor }}>
+                  {saveStatus === "saving" ? "↑ " : saveStatus === "error" ? "✕ " : "☁ "}{statusText}
+                </span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>·</span>
+                <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{user?.displayName}</span>
+                <button onClick={handleLogout}
+                  className="text-xs px-2 py-0.5"
+                  style={{ color: "var(--text-muted)", border: "1px solid var(--border)", background: "transparent", cursor: "pointer" }}>
+                  Uitloggen
+                </button>
               </div>
             </div>
           </div>
           <div className="flex gap-0 overflow-x-auto scrollbar-hide -mb-px">
             {NAV.map(item => (
-              <button
-                key={item.key}
-                onClick={() => setTab(item.key)}
+              <button key={item.key} onClick={() => setTab(item.key)}
                 className="px-4 py-2.5 text-sm whitespace-nowrap border-b-2 transition-all"
                 style={{
                   borderBottomColor: tab === item.key ? "var(--sage)" : "transparent",
@@ -189,8 +191,7 @@ export default function App() {
                   letterSpacing: "0.02em",
                   background: "transparent",
                   cursor: "pointer",
-                }}
-              >
+                }}>
                 {item.label}
               </button>
             ))}
@@ -198,25 +199,47 @@ export default function App() {
         </div>
       </header>
 
-      {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-5">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--sage)", borderTopColor: "transparent" }} />
+            <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: "var(--sage)", borderTopColor: "transparent" }} />
             <div className="text-sm" style={{ color: "var(--text-muted)" }}>Rapporten laden…</div>
           </div>
         ) : (
           <>
             {tab === "dashboard" && <Dashboard tempReports={tempReports} cleanReports={cleanReports} onNavigate={navigateTo} />}
-            {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} />}
-            {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} />}
+            {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} autoFillParaaf={user?.displayName ?? ""} />}
+            {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} autoFillDoor={user?.displayName ?? ""} />}
             {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onToast={showToast} />}
-            {tab === "settings" && <Settings onClear={clearData} />}
+            {tab === "settings" && <Settings onClear={clearData} isAdmin={user?.isAdmin ?? false} />}
           </>
         )}
       </main>
 
       {toast && <Toast message={toast} onDone={clearToast} />}
     </div>
+  );
+}
+
+function AppRoot() {
+  const { authLoaded, user } = useAuth();
+
+  if (!authLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
+        <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: "var(--sage)", borderTopColor: "transparent" }} />
+      </div>
+    );
+  }
+
+  if (!user) return <Login />;
+  return <MainApp />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoot />
+    </AuthProvider>
   );
 }

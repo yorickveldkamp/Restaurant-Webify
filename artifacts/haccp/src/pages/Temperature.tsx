@@ -8,6 +8,7 @@ interface Props {
   tempReports: TempReport[];
   onSave: (r: TempReport) => void;
   onToast: (msg: string) => void;
+  autoFillParaaf?: string;
 }
 
 type Measurements = Record<string, { m1: string; m2: string; m3: string; maatregel: string }>;
@@ -37,12 +38,12 @@ function buildWeekOptions(): { label: string; value: string }[] {
   return options;
 }
 
-export function Temperature({ tempReports, onSave, onToast }: Props) {
+export function Temperature({ tempReports, onSave, onToast, autoFillParaaf = "" }: Props) {
   const weekOptions = useMemo(buildWeekOptions, []);
   const defaultWeek = `Week ${isoWeekNumber(new Date())} – ${new Date().getFullYear()}`;
 
   const [week, setWeek] = useState(defaultWeek);
-  const [paraaf, setParaaf] = useState("");
+  const [paraaf, setParaaf] = useState(autoFillParaaf);
   const [measurements, setMeasurements] = useState<Measurements>(initM);
 
   const update = (id: string, field: "m1" | "m2" | "m3" | "maatregel", value: string) =>

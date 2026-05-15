@@ -68,11 +68,10 @@ function makePDF(title: string, sections: Array<{
         }
       },
     });
-    // @ts-expect-error lastAutoTable is added by jspdf-autotable
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
   });
 
-  const pages = doc.internal.getNumberOfPages();
+  const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
@@ -185,7 +184,6 @@ export function downloadMonthlyOverview(
     headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 242] },
   });
-  // @ts-expect-error lastAutoTable is added by jspdf-autotable
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
 
   // Temperature sections
@@ -233,7 +231,6 @@ export function downloadMonthlyOverview(
           }
         },
       });
-      // @ts-expect-error lastAutoTable is added by jspdf-autotable
       y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
     });
   }
@@ -281,13 +278,12 @@ export function downloadMonthlyOverview(
           }
         },
       });
-      // @ts-expect-error lastAutoTable is added by jspdf-autotable
       y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
     });
   }
 
   // Page numbers
-  const pages = doc.internal.getNumberOfPages();
+  const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.setFontSize(8);

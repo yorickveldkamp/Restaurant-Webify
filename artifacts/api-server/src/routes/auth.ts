@@ -102,8 +102,9 @@ router.delete("/auth/users/:id", requireAuth, async (req, res) => {
   try {
     const [current] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId!));
     if (!current?.isAdmin) { res.status(403).json({ error: "Geen toegang" }); return; }
-    if (req.params.id === req.session.userId) { res.status(400).json({ error: "Kan eigen account niet verwijderen" }); return; }
-    await db.delete(usersTable).where(eq(usersTable.id, req.params.id));
+    const targetId = String(req.params.id);
+    if (targetId === req.session.userId) { res.status(400).json({ error: "Kan eigen account niet verwijderen" }); return; }
+    await db.delete(usersTable).where(eq(usersTable.id, targetId));
     res.status(204).end();
   } catch (err) {
     req.log.error({ err }, "DELETE /auth/users failed");
