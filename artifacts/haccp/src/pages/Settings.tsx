@@ -1,11 +1,34 @@
+import { useRef, useState } from "react";
+import { TempReport, CleanReport } from "../lib/data";
+import {
+  importTempCSV, importCleanCSV,
+  downloadTempTemplate, downloadCleanTemplate,
+  type ImportResult,
+} from "../lib/csvImport";
+
 interface Props {
   onClear: (type: "temp" | "cleaning" | "all") => void;
   currentName: string;
   onChangeName: () => void;
   onNavigate: (tab: "temp" | "cleaning") => void;
+  onImportTemp: (reports: TempReport[]) => Promise<number>;
+  onImportClean: (reports: CleanReport[]) => Promise<number>;
+  onToast: (msg: string) => void;
 }
 
-export function Settings({ onClear, currentName, onChangeName, onNavigate }: Props) {
+type Preview =
+  | { kind: "temp"; result: ImportResult<TempReport>; filename: string }
+  | { kind: "clean"; result: ImportResult<CleanReport>; filename: string };
+
+export function Settings({
+  onClear, currentName, onChangeName, onNavigate,
+  onImportTemp, onImportClean, onToast,
+}: Props) {
+  const tempInputRef = useRef<HTMLInputElement>(null);
+  const cleanInputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [busy, setBusy] = useState(false);
+
   const confirm_ = (type: "temp" | "cleaning" | "all") => {
     const labels = { temp: "alle temperatuurrapporten", cleaning: "alle reinigingsrapporten", all: "ALLE rapporten" };
     if (window.confirm(`Weet je zeker dat je ${labels[type]} permanent wil verwijderen?`)) onClear(type);
@@ -16,6 +39,53 @@ export function Settings({ onClear, currentName, onChangeName, onNavigate }: Pro
     { title: "Reinigingsrapporten", desc: "Alle opgeslagen reinigingschecks verwijderen", type: "cleaning" },
     { title: "Alles wissen", desc: "Alle rapporten in één keer verwijderen", type: "all", danger: true },
   ];
+
+  const readFile = (f: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result || ""));
+      r.onerror = () => reject(r.error);
+      r.readAsText(f, "utf-8");
+    });
+
+  const handleTempFile = async (f: File | null | undefined) => {
+    if (!f || busy) return;
+    try {
+      const text = await readFile(f);
+      const result = importTempCSV(text);
+      setPreview({ kind: "temp", result, filename: f.name });
+    } catch { onToast("Bestand kon niet worden gelezen."); }
+    if (tempInputRef.current) tempInputRef.current.value = "";
+  };
+
+  const handleCleanFile = async (f: File | null | undefined) => {
+    if (!f || busy) return;
+    try {
+      const text = await readFile(f);
+      const result = importCleanCSV(text);
+      setPreview({ kind: "clean", result, filename: f.name });
+    } catch { onToast("Bestand kon niet worden gelezen."); }
+    if (cleanInputRef.current) cleanInputRef.current.value = "";
+  };
+
+  const confirmImport = async () => {
+    if (!preview) return;
+    const total = preview.result.reports.length;
+    setBusy(true);
+    try {
+      const count = preview.kind === "temp"
+        ? await onImportTemp(preview.result.reports)
+        : await onImportClean(preview.result.reports);
+      if (count === total) {
+        onToast(`${count} rapport${count === 1 ? "" : "en"} geïmporteerd`);
+      } else {
+        onToast(`${count} van ${total} rapporten geïmporteerd — ${total - count} mislukt`);
+      }
+      setPreview(null);
+    } catch {
+      onToast("Importeren mislukt");
+    } finally { setBusy(false); }
+  };
 
   return (
     <div className="space-y-4">
@@ -34,27 +104,113 @@ export function Settings({ onClear, currentName, onChangeName, onNavigate }: Pro
         </div>
       </div>
 
+      {/* ── Paper data: manual entry shortcuts ───────────────── */}
       <div className="card overflow-hidden">
         <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
-          <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Papieren gegevens importeren</span>
+          <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Papieren gegevens — handmatig invoeren</span>
         </div>
         <div className="px-5 py-4 space-y-3">
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            Heb je nog rapporten op papier? Je kunt ze achteraf invoeren. Open hieronder Temperatuur of Reiniging,
-            kies bovenaan een week of datum uit het verleden (tot ongeveer een jaar terug) en vul je papieren gegevens in.
-            Sla daarna op als rapport en kies de volgende datum.
+            Open Temperatuur of Reiniging, kies bovenaan een week of datum uit het verleden (tot ~1 jaar terug)
+            en vul je papieren gegevens in. Sla op als rapport en ga door naar de volgende datum.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
-            <button onClick={() => onNavigate("temp")} className="btn-secondary">
-              Temperatuur invoeren →
-            </button>
-            <button onClick={() => onNavigate("cleaning")} className="btn-secondary">
-              Reiniging invoeren →
-            </button>
+            <button onClick={() => onNavigate("temp")} className="btn-secondary">Temperatuur invoeren →</button>
+            <button onClick={() => onNavigate("cleaning")} className="btn-secondary">Reiniging invoeren →</button>
           </div>
-          <div className="text-xs pt-1" style={{ color: "var(--text-muted)" }}>
-            Tip: gebruik <strong>Tussentijds opslaan</strong> als je halverwege bent. Een rapport wordt pas definitief opgeslagen als alles is ingevuld.
+        </div>
+      </div>
+
+      {/* ── CSV import ───────────────────────────────────────── */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+          <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>CSV importeren</span>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            Heb je veel papieren rapporten? Vul ze in een Excel- of Numbers-bestand in en sla op als <strong>CSV</strong>.
+            Download eerst een sjabloon, vul het in (één rij per object/taak) en upload het hieronder.
+            Rapporten worden gegroepeerd per week + datum + paraaf (temperatuur) of frequentie + datum + naam (reiniging).
+          </p>
+
+          {/* Temperature row */}
+          <div className="rounded p-3 space-y-2" style={{ background: "var(--beige-light)" }}>
+            <div className="text-xs font-semibold tracking-wider uppercase" style={{ color: "var(--text-muted)" }}>Temperatuur</div>
+            <div className="flex flex-wrap gap-2 items-center">
+              <button onClick={downloadTempTemplate} disabled={busy} className="btn-secondary text-sm">Sjabloon downloaden</button>
+              <button onClick={() => tempInputRef.current?.click()} disabled={busy} className="btn-primary text-sm"
+                style={{ opacity: busy ? 0.5 : 1 }}>CSV uploaden…</button>
+              <input ref={tempInputRef} type="file" accept=".csv,text/csv" className="hidden" disabled={busy}
+                onChange={e => handleTempFile(e.target.files?.[0])} />
+            </div>
+            <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Verplichte kolommen: <code>Week</code>, <code>Object</code>. Optioneel: <code>Datum opgeslagen</code>, <code>Paraaf</code>, <code>1e meting</code>, <code>2e meting</code>, <code>3e meting</code>, <code>Maatregel</code>.
+            </div>
           </div>
+
+          {/* Cleaning row */}
+          <div className="rounded p-3 space-y-2" style={{ background: "var(--beige-light)" }}>
+            <div className="text-xs font-semibold tracking-wider uppercase" style={{ color: "var(--text-muted)" }}>Reiniging</div>
+            <div className="flex flex-wrap gap-2 items-center">
+              <button onClick={downloadCleanTemplate} disabled={busy} className="btn-secondary text-sm">Sjabloon downloaden</button>
+              <button onClick={() => cleanInputRef.current?.click()} disabled={busy} className="btn-primary text-sm"
+                style={{ opacity: busy ? 0.5 : 1 }}>CSV uploaden…</button>
+              <input ref={cleanInputRef} type="file" accept=".csv,text/csv" className="hidden" disabled={busy}
+                onChange={e => handleCleanFile(e.target.files?.[0])} />
+            </div>
+            <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Verplichte kolommen: <code>Frequentie</code> (dagelijks/wekelijks/maandelijks), <code>Datum</code>, <code>Taak</code>. Optioneel: <code>Uitgevoerd door</code>, <code>Afgevinkt</code> (Gedaan/Open), <code>Tijdstip</code>, <code>Opmerking</code>.
+            </div>
+          </div>
+
+          {/* Preview / confirm */}
+          {preview && (
+            <div className="rounded p-3 space-y-3"
+              style={{ background: "#fff", border: "1px solid var(--border)" }}>
+              <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
+                Voorvertoning — {preview.filename}
+              </div>
+              <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+                <span className="font-semibold" style={{ color: "var(--text)" }}>{preview.result.reports.length}</span> rapport{preview.result.reports.length === 1 ? "" : "en"} klaar om te importeren
+                {" · "}
+                <span>{preview.result.rowsRead} regels gelezen</span>
+                {preview.result.rowsSkipped > 0 && <span> · <span style={{ color: "#a04a00" }}>{preview.result.rowsSkipped} overgeslagen</span></span>}
+              </div>
+
+              {preview.result.reports.length > 0 && (
+                <ul className="text-xs space-y-0.5 max-h-40 overflow-y-auto pl-4 list-disc"
+                  style={{ color: "var(--text-muted)" }}>
+                  {preview.result.reports.slice(0, 12).map((r, i) => (
+                    <li key={i}>
+                      {preview.kind === "temp"
+                        ? `${(r as TempReport).week} — ${(r as TempReport).date || "geen datum"} — ${(r as TempReport).paraaf || "geen paraaf"}`
+                        : `${(r as CleanReport).freq} — ${(r as CleanReport).datum} — ${(r as CleanReport).door || "geen naam"}`}
+                    </li>
+                  ))}
+                  {preview.result.reports.length > 12 && <li>… en nog {preview.result.reports.length - 12}</li>}
+                </ul>
+              )}
+
+              {preview.result.warnings.length > 0 && (
+                <details className="text-xs" style={{ color: "#854f0b" }}>
+                  <summary className="cursor-pointer">{preview.result.warnings.length} waarschuwing{preview.result.warnings.length === 1 ? "" : "en"}</summary>
+                  <ul className="mt-1 pl-4 list-disc max-h-32 overflow-y-auto">
+                    {preview.result.warnings.slice(0, 50).map((w, i) => <li key={i}>{w}</li>)}
+                    {preview.result.warnings.length > 50 && <li>…</li>}
+                  </ul>
+                </details>
+              )}
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button onClick={confirmImport} disabled={busy || preview.result.reports.length === 0}
+                  className="btn-primary"
+                  style={{ opacity: busy || preview.result.reports.length === 0 ? 0.5 : 1 }}>
+                  {busy ? "Importeren…" : `${preview.result.reports.length} importeren`}
+                </button>
+                <button onClick={() => setPreview(null)} disabled={busy} className="btn-secondary">Annuleren</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

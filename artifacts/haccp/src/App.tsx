@@ -106,6 +106,40 @@ function MainApp() {
     }
   };
 
+  const importTemp = async (reports: TempReport[]): Promise<number> => {
+    setSaveStatus("saving");
+    let ok = 0;
+    try {
+      for (const r of reports) {
+        try { await apiAddTempReport(r); ok++; } catch { /* skip failed */ }
+      }
+      const fresh = await apiGetTempReports();
+      setTempReports(fresh);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch {
+      setSaveStatus("error");
+    }
+    return ok;
+  };
+
+  const importClean = async (reports: CleanReport[]): Promise<number> => {
+    setSaveStatus("saving");
+    let ok = 0;
+    try {
+      for (const r of reports) {
+        try { await apiAddCleanReport(r); ok++; } catch { /* skip failed */ }
+      }
+      const fresh = await apiGetCleanReports();
+      setCleanReports(fresh);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch {
+      setSaveStatus("error");
+    }
+    return ok;
+  };
+
   const delTemp = async (id: string) => {
     try {
       await apiDeleteTempReport(id);
@@ -216,7 +250,7 @@ function MainApp() {
             {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} autoFillParaaf={name} />}
             {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} autoFillDoor={name} />}
             {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onToast={showToast} />}
-            {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} onNavigate={(t) => navigateTo(t)} />}
+            {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} onNavigate={(t) => navigateTo(t)} onImportTemp={importTemp} onImportClean={importClean} onToast={showToast} />}
           </>
         )}
       </main>
