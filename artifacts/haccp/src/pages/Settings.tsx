@@ -2,9 +2,10 @@ interface Props {
   onClear: (type: "temp" | "cleaning" | "all") => void;
   currentName: string;
   onChangeName: () => void;
+  onNavigate: (tab: "temp" | "cleaning") => void;
 }
 
-export function Settings({ onClear, currentName, onChangeName }: Props) {
+export function Settings({ onClear, currentName, onChangeName, onNavigate }: Props) {
   const confirm_ = (type: "temp" | "cleaning" | "all") => {
     const labels = { temp: "alle temperatuurrapporten", cleaning: "alle reinigingsrapporten", all: "ALLE rapporten" };
     if (window.confirm(`Weet je zeker dat je ${labels[type]} permanent wil verwijderen?`)) onClear(type);
@@ -30,6 +31,30 @@ export function Settings({ onClear, currentName, onChangeName }: Props) {
             </div>
           </div>
           <button onClick={onChangeName} className="btn-secondary shrink-0">Wijzigen</button>
+        </div>
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+          <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Papieren gegevens importeren</span>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            Heb je nog rapporten op papier? Je kunt ze achteraf invoeren. Open hieronder Temperatuur of Reiniging,
+            kies bovenaan een week of datum uit het verleden (tot ongeveer een jaar terug) en vul je papieren gegevens in.
+            Sla daarna op als rapport en kies de volgende datum.
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button onClick={() => onNavigate("temp")} className="btn-secondary">
+              Temperatuur invoeren →
+            </button>
+            <button onClick={() => onNavigate("cleaning")} className="btn-secondary">
+              Reiniging invoeren →
+            </button>
+          </div>
+          <div className="text-xs pt-1" style={{ color: "var(--text-muted)" }}>
+            Tip: gebruik <strong>Tussentijds opslaan</strong> als je halverwege bent. Een rapport wordt pas definitief opgeslagen als alles is ingevuld.
+          </div>
         </div>
       </div>
 

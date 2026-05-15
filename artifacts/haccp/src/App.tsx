@@ -216,7 +216,7 @@ function MainApp() {
             {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} autoFillParaaf={name} />}
             {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} autoFillDoor={name} />}
             {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onToast={showToast} />}
-            {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} />}
+            {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} onNavigate={(t) => navigateTo(t)} />}
           </>
         )}
       </main>
