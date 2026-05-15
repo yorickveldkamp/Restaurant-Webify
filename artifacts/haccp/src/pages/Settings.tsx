@@ -109,12 +109,6 @@ export function Settings({
           <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>CSV importeren</span>
         </div>
         <div className="px-5 py-4 space-y-4">
-          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            Heb je veel papieren rapporten? Vul ze in een Excel- of Numbers-bestand in en sla op als <strong>CSV</strong>.
-            Download eerst een sjabloon, vul het in (één rij per object/taak) en upload het hieronder.
-            Rapporten worden gegroepeerd per week + datum + paraaf (temperatuur) of frequentie + datum + naam (reiniging).
-          </p>
-
           {/* Temperature row */}
           <div className="rounded p-3 space-y-2" style={{ background: "var(--beige-light)" }}>
             <div className="text-xs font-semibold tracking-wider uppercase" style={{ color: "var(--text-muted)" }}>Temperatuur</div>
@@ -124,9 +118,6 @@ export function Settings({
                 style={{ opacity: busy ? 0.5 : 1 }}>CSV uploaden…</button>
               <input ref={tempInputRef} type="file" accept=".csv,text/csv" className="hidden" disabled={busy}
                 onChange={e => handleTempFile(e.target.files?.[0])} />
-            </div>
-            <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Verplichte kolommen: <code>Week</code>, <code>Object</code>. Optioneel: <code>Datum opgeslagen</code>, <code>Paraaf</code>, <code>1e meting</code>, <code>2e meting</code>, <code>3e meting</code>, <code>Maatregel</code>.
             </div>
           </div>
 
@@ -139,9 +130,6 @@ export function Settings({
                 style={{ opacity: busy ? 0.5 : 1 }}>CSV uploaden…</button>
               <input ref={cleanInputRef} type="file" accept=".csv,text/csv" className="hidden" disabled={busy}
                 onChange={e => handleCleanFile(e.target.files?.[0])} />
-            </div>
-            <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Verplichte kolommen: <code>Frequentie</code> (dagelijks/wekelijks/maandelijks), <code>Datum</code>, <code>Taak</code>. Optioneel: <code>Uitgevoerd door</code>, <code>Afgevinkt</code> (Gedaan/Open), <code>Tijdstip</code>, <code>Opmerking</code>.
             </div>
           </div>
 
