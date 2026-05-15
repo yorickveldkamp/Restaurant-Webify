@@ -1,13 +1,12 @@
 import { Router } from "express";
 import { db, tempReportsTable, cleanReportsTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
-import { requireAuth } from "../middlewares/requireAuth";
 
 const router = Router();
 
 /* ── Temperature reports ────────────────────────────── */
 
-router.get("/reports/temp", requireAuth, async (req, res) => {
+router.get("/reports/temp", async (req, res) => {
   try {
     const rows = await db.select().from(tempReportsTable).orderBy(desc(tempReportsTable.createdAt));
     res.json(rows);
@@ -17,7 +16,7 @@ router.get("/reports/temp", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/reports/temp", requireAuth, async (req, res) => {
+router.post("/reports/temp", async (req, res) => {
   try {
     const { id, week, paraaf, date, time, rows, overallStatus } = req.body as {
       id: string; week: string; paraaf: string; date: string;
@@ -35,7 +34,7 @@ router.post("/reports/temp", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/reports/temp/:id", requireAuth, async (req, res) => {
+router.delete("/reports/temp/:id", async (req, res) => {
   try {
     await db.delete(tempReportsTable).where(eq(tempReportsTable.id, String(req.params.id)));
     res.status(204).end();
@@ -47,7 +46,7 @@ router.delete("/reports/temp/:id", requireAuth, async (req, res) => {
 
 /* ── Cleaning reports ───────────────────────────────── */
 
-router.get("/reports/clean", requireAuth, async (req, res) => {
+router.get("/reports/clean", async (req, res) => {
   try {
     const rows = await db.select().from(cleanReportsTable).orderBy(desc(cleanReportsTable.createdAt));
     res.json(rows);
@@ -57,7 +56,7 @@ router.get("/reports/clean", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/reports/clean", requireAuth, async (req, res) => {
+router.post("/reports/clean", async (req, res) => {
   try {
     const { id, freq, datum, door, time, rows, overallStatus } = req.body as {
       id: string; freq: string; datum: string; door: string;
@@ -75,7 +74,7 @@ router.post("/reports/clean", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/reports/clean/:id", requireAuth, async (req, res) => {
+router.delete("/reports/clean/:id", async (req, res) => {
   try {
     await db.delete(cleanReportsTable).where(eq(cleanReportsTable.id, String(req.params.id)));
     res.status(204).end();

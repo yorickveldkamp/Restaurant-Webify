@@ -7,8 +7,8 @@ import {
   apiGetCleanReports, apiAddCleanReport, apiDeleteCleanReport,
   apiClearTempReports, apiClearCleanReports,
 } from "./lib/api";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { Login } from "./pages/Login";
+import { NameProvider, useName } from "./contexts/NameContext";
+import { NamePrompt } from "./components/NamePrompt";
 import { Dashboard } from "./pages/Dashboard";
 import { Temperature } from "./pages/Temperature";
 import { Cleaning } from "./pages/Cleaning";
@@ -27,20 +27,20 @@ const NAV: { key: Tab; label: string }[] = [
 ];
 
 function MainApp() {
-  const { user, logout, authLoaded } = useAuth();
+  const { name, setName } = useName();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [tempReports, setTempReports] = useState<TempReport[]>([]);
   const [cleanReports, setCleanReports] = useState<CleanReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [toast, setToast] = useState("");
+  const [editName, setEditName] = useState(false);
   const migrated = useRef(false);
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
   const clearToast = useCallback(() => setToast(""), []);
 
   useEffect(() => {
-    if (!user) return;
     (async () => {
       setLoading(true);
       try {
@@ -78,7 +78,7 @@ function MainApp() {
         setLoading(false);
       }
     })();
-  }, [user, showToast]);
+  }, [showToast]);
 
   const addTemp = async (r: TempReport) => {
     setSaveStatus("saving");
@@ -139,14 +139,20 @@ function MainApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
   const statusText = saveStatus === "saving" ? "Opslaan…" : saveStatus === "saved" ? "Opgeslagen" : saveStatus === "error" ? "Fout" : "Verbonden";
   const statusColor = saveStatus === "error" ? "#c0392b" : saveStatus === "saving" ? "#B0A795" : "var(--sage-dark)";
 
-  if (!authLoaded || (authLoaded && !user)) return null;
+  if (editName) {
+    return (
+      <NamePrompt
+        initialName={name}
+        title="Naam wijzigen"
+        subtitle="Deze naam wordt gebruikt bij nieuwe rapporten."
+        onSubmit={(n) => { setName(n); setEditName(false); }}
+        onCancel={() => setEditName(false)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)", fontFamily: "'Jost', sans-serif" }}>
@@ -171,11 +177,10 @@ function MainApp() {
                   {saveStatus === "saving" ? "↑ " : saveStatus === "error" ? "✕ " : "☁ "}{statusText}
                 </span>
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>·</span>
-                <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{user?.displayName}</span>
-                <button onClick={handleLogout}
-                  className="text-xs px-2 py-0.5"
-                  style={{ color: "var(--text-muted)", border: "1px solid var(--border)", background: "transparent", cursor: "pointer" }}>
-                  Uitloggen
+                <button onClick={() => setEditName(true)}
+                  className="text-xs font-medium underline-offset-2 hover:underline"
+                  style={{ color: "var(--text)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
+                  {name}
                 </button>
               </div>
             </div>
@@ -208,10 +213,10 @@ function MainApp() {
         ) : (
           <>
             {tab === "dashboard" && <Dashboard tempReports={tempReports} cleanReports={cleanReports} onNavigate={navigateTo} />}
-            {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} autoFillParaaf={user?.displayName ?? ""} />}
-            {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} autoFillDoor={user?.displayName ?? ""} />}
+            {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} autoFillParaaf={name} />}
+            {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} autoFillDoor={name} />}
             {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onToast={showToast} />}
-            {tab === "settings" && <Settings onClear={clearData} isAdmin={user?.isAdmin ?? false} />}
+            {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} />}
           </>
         )}
       </main>
@@ -222,9 +227,9 @@ function MainApp() {
 }
 
 function AppRoot() {
-  const { authLoaded, user } = useAuth();
+  const { name, setName, loaded } = useName();
 
-  if (!authLoaded) {
+  if (!loaded) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
         <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: "var(--sage)", borderTopColor: "transparent" }} />
@@ -232,14 +237,14 @@ function AppRoot() {
     );
   }
 
-  if (!user) return <Login />;
+  if (!name) return <NamePrompt onSubmit={setName} />;
   return <MainApp />;
 }
 
 export default function App() {
   return (
-    <AuthProvider>
+    <NameProvider>
       <AppRoot />
-    </AuthProvider>
+    </NameProvider>
   );
 }
