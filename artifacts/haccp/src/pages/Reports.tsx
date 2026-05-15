@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { TempReport, CleanReport, statusLabel } from "../lib/data";
-import { Badge } from "../components/Badge";
-import { downloadTempReport, downloadCleanReport, exportAllTempCSV, exportAllCleanCSV } from "../lib/pdf";
+import { downloadTempReport, downloadCleanReport, exportAllTempCSV, exportAllCleanCSV, downloadMonthlyOverview } from "../lib/pdf";
 
 interface ReportsProps {
   tempReports: TempReport[];
@@ -11,8 +10,139 @@ interface ReportsProps {
   onToast: (msg: string) => void;
 }
 
+type Tab = "temp" | "clean" | "maand";
+
+function MonthlyOverview({ tempReports, cleanReports, onToast }: {
+  tempReports: TempReport[];
+  cleanReports: CleanReport[];
+  onToast: (msg: string) => void;
+}) {
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+
+  /** Parse "dd/mm/yyyy" → { month, year } */
+  function parseDutchDate(s: string) {
+    const parts = s.split("/");
+    if (parts.length !== 3) return null;
+    return { month: parseInt(parts[1], 10), year: parseInt(parts[2], 10) };
+  }
+
+  const filteredTemp = tempReports.filter((r) => {
+    const d = parseDutchDate(r.date);
+    return d && d.month === month && d.year === year;
+  });
+  const filteredClean = cleanReports.filter((r) => {
+    const d = parseDutchDate(r.datum);
+    return d && d.month === month && d.year === year;
+  });
+
+  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("nl-BE", { month: "long", year: "numeric" });
+  const total = filteredTemp.length + filteredClean.length;
+
+  const handleExport = () => {
+    if (total === 0) { onToast("Geen rapporten voor deze maand."); return; }
+    downloadMonthlyOverview(month, year, tempReports, cleanReports);
+    onToast("Maandoverzicht PDF gedownload");
+  };
+
+  const months = [
+    "Januari", "Februari", "Maart", "April", "Mei", "Juni",
+    "Juli", "Augustus", "September", "Oktober", "November", "December",
+  ];
+
+  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+
+  const nokTemp = filteredTemp.filter((r) => r.overallStatus === "nok").length;
+  const warnTemp = filteredTemp.filter((r) => r.overallStatus === "warn").length;
+  const doneClean = filteredClean.filter((r) => r.overallStatus === "ok").length;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <h2 className="text-sm font-medium text-gray-900 mb-4">📋 Maandoverzicht PDF</h2>
+
+      {/* Month/year selectors */}
+      <div className="flex flex-wrap gap-3 mb-5">
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Maand</label>
+          <select
+            value={month}
+            onChange={(e) => setMonth(Number(e.target.value))}
+            className="border border-gray-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white"
+          >
+            {months.map((m, i) => (
+              <option key={i} value={i + 1}>{m}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Jaar</label>
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="border border-gray-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white"
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Preview card */}
+      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+        <div className="text-sm font-medium text-gray-700 mb-3 capitalize">
+          {monthLabel}
+        </div>
+        {total === 0 ? (
+          <p className="text-sm text-gray-400 italic">Geen rapporten gevonden voor deze maand.</p>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">🌡️ Temperatuurrapporten</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">{filteredTemp.length}</span>
+                {nokTemp > 0 && <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[#FCEBEB] text-[#791F1F]">{nokTemp} NOK</span>}
+                {warnTemp > 0 && <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[#FAEEDA] text-[#633806]">{warnTemp} let op</span>}
+                {filteredTemp.length > 0 && nokTemp === 0 && warnTemp === 0 && <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[#EAF3DE] text-[#27500A]">Alles OK</span>}
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">🧹 Reinigingsrapporten</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">{filteredClean.length}</span>
+                {filteredClean.length > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${doneClean === filteredClean.length ? "bg-[#EAF3DE] text-[#27500A]" : "bg-[#FAEEDA] text-[#633806]"}`}>
+                    {doneClean}/{filteredClean.length} volledig
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="border-t border-gray-200 pt-2 mt-2 flex items-center justify-between text-xs text-gray-500">
+              <span>Totaal rapporten in overzicht</span>
+              <span className="font-medium text-gray-900">{total}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={handleExport}
+        disabled={total === 0}
+        className={`w-full sm:w-auto px-5 py-2.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+          total === 0
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+            : "bg-gray-900 text-white hover:bg-gray-700"
+        }`}
+      >
+        📄 Maandoverzicht downloaden
+      </button>
+    </div>
+  );
+}
+
 export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean, onToast }: ReportsProps) {
-  const [tab, setTab] = useState<"temp" | "clean">("temp");
+  const [tab, setTab] = useState<Tab>("temp");
 
   const handleDeleteTemp = (id: string) => {
     if (window.confirm("Dit rapport permanent verwijderen?")) {
@@ -40,29 +170,28 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
     alert(`${r.freq.charAt(0).toUpperCase() + r.freq.slice(1)} – ${r.datum}\nUitgevoerd door: ${r.door || "—"}\n\n${lines}`);
   };
 
+  const tabs: { key: Tab; label: string; icon: string }[] = [
+    { key: "temp", label: "Temperatuur", icon: "🌡️" },
+    { key: "clean", label: "Reiniging", icon: "🧹" },
+    { key: "maand", label: "Maandoverzicht", icon: "📋" },
+  ];
+
   return (
     <div>
       <div className="flex gap-2 mb-4 flex-wrap">
-        <button
-          onClick={() => setTab("temp")}
-          className={`px-4 py-1.5 rounded-md border text-sm transition-all ${
-            tab === "temp"
-              ? "bg-gray-100 border-gray-400 text-gray-900 font-medium"
-              : "bg-transparent text-gray-600 border-gray-200 hover:bg-gray-50"
-          }`}
-        >
-          🌡️ Temperatuur
-        </button>
-        <button
-          onClick={() => setTab("clean")}
-          className={`px-4 py-1.5 rounded-md border text-sm transition-all ${
-            tab === "clean"
-              ? "bg-gray-100 border-gray-400 text-gray-900 font-medium"
-              : "bg-transparent text-gray-600 border-gray-200 hover:bg-gray-50"
-          }`}
-        >
-          🧹 Reiniging
-        </button>
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-1.5 rounded-md border text-sm transition-all ${
+              tab === t.key
+                ? "bg-gray-100 border-gray-400 text-gray-900 font-medium"
+                : "bg-transparent text-gray-600 border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
       </div>
 
       {tab === "temp" && (
@@ -151,6 +280,10 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
             </div>
           )}
         </div>
+      )}
+
+      {tab === "maand" && (
+        <MonthlyOverview tempReports={tempReports} cleanReports={cleanReports} onToast={onToast} />
       )}
     </div>
   );
