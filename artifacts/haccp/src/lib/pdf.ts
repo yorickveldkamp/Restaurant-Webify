@@ -154,7 +154,7 @@ function makePDF(title: string, sections: Array<{
 export function downloadTempReport(r: TempReport): void {
   const sec = {
     title: `Temperatuurrapport – ${r.week}`,
-    subtitle: `Opgeslagen: ${r.date} om ${r.time}  ·  Paraaf: ${r.paraaf || "—"}  ·  Koeling max 7,0°C  ·  Diepvries max −18,0°C`,
+    subtitle: `Opgeslagen: ${r.date} om ${r.time}  ·  Paraaf: ${r.paraaf || "—"}`,
     headers: ["Object", "Type", "1e meting", "2e meting", "3e meting", "Gemiddeld", "Status", "Maatregel"],
     rows: r.rows.map((row) => [
       row.object, row.type, row.m1 || "—", row.m2 || "—", row.m3 || "—",
