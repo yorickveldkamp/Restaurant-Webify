@@ -37,7 +37,7 @@ export function Beleid() {
             </p>
             <p className="policy-text">
               Dit beleid is van toepassing op alle voedselbereiding, opslag, verwerking en servering in Der Drahtesel.
-              Verantwoordelijke: <strong>[Naam invullen]</strong>, Küchenchef / Betriebsleiter.
+              Verantwoordelijke: <strong>Merel Fidom</strong>, Küchenchef / Betriebsleiter.
             </p>
           </section>,
 
@@ -50,8 +50,6 @@ export function Beleid() {
               </thead>
               <tbody>
                 <tr><td>Küchenchef</td><td>Eindverantwoordelijke HACCP</td></tr>
-                <tr><td>Sous-chef</td><td>Dagelijkse CCP-controles</td></tr>
-                <tr><td>Serviceleiter</td><td>Koude opslag &amp; buffet</td></tr>
                 <tr><td>Betriebsleiter</td><td>Documentatie &amp; audits</td></tr>
               </tbody>
             </table>
@@ -61,7 +59,7 @@ export function Beleid() {
           <section key="3">
             <h2 className="section-title">3. Productbeschrijving</h2>
             <p className="policy-text">
-              Warme maaltijden, koude voor-/nagerechten, desserts, buffetproducten en ontbijt voor hotelgasten en restaurantbezoekers, inclusief kwetsbare groepen.
+              Warme maaltijden, koude voor-/nagerechten, desserts, buffetproducten en ontbijt voor hotelgasten en restaurantbezoekers.
             </p>
           </section>,
 
@@ -228,9 +226,9 @@ export function Beleid() {
             <h2 className="section-title">11. Ondertekening</h2>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 32, marginTop: 12 }}>
               {[
-                { label: "Opgesteld door (Küchenchef)", value: "[Naam invullen]" },
-                { label: "Goedgekeurd door (Betriebsleiter)", value: "[Naam invullen]" },
-                { label: "Datum", value: "[invullen]" },
+                { label: "Opgesteld door (Küchenchef)", value: "Yorick Veldkamp" },
+                { label: "Goedgekeurd door (Betriebsleiter)", value: "Merel Fidom" },
+                { label: "Datum", value: "16 mei 2026" },
               ].map(f => (
                 <div key={f.label} style={{ minWidth: 200 }}>
                   <div className="text-xs uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>{f.label}</div>

@@ -24,12 +24,12 @@ type Tab = "dashboard" | "temp" | "cleaning" | "delivery" | "reports" | "setting
 
 const NAV: { key: Tab; label: string }[] = [
   { key: "dashboard", label: "Dashboard" },
+  { key: "beleid", label: "Beleid" },
   { key: "temp", label: "Temperatuur" },
   { key: "cleaning", label: "Reiniging" },
   { key: "delivery", label: "Levering" },
   { key: "reports", label: "Rapporten" },
   { key: "settings", label: "Instellingen" },
-  { key: "beleid", label: "Beleid" },
 ];
 
 function MainApp() {
