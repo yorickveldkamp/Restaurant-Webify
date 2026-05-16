@@ -154,3 +154,39 @@ export function deliveryStatus(r: Pick<DeliveryReport, "rejected" | "visualCheck
   if (r.rejected === "yes" || r.visualCheck === "fail" || r.bbdCheck === "fail") return "nok";
   return "ok";
 }
+
+export const HYGIENE_CHECKS = [
+  "Handen gewassen en gedesinfecteerd",
+  "Schone werkkleding aan",
+  "Haar opgebonden of haarnetje gedragen",
+  "Geen sieraden (ringen, armbanden, oorringen)",
+  "Nagels kort en schoon, geen nagellak",
+  "Geen zichtbare wonden of infecties aan handen",
+  "Geen tekenen van ziekte (koorts, diarree, braken)",
+  "Persoonlijke hygiënetraining up-to-date",
+] as const;
+
+export interface EmployeeHygiene {
+  name: string;
+  role: string;
+  checks: boolean[];
+  status: "pending" | "approved" | "rejected";
+  rejectedReason: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
+export interface HygieneReport {
+  id: string;
+  date: string;
+  shift: string;
+  savedAt: string;
+  savedBy: string;
+  employees: EmployeeHygiene[];
+  type: "hygiene";
+}
+
+export interface Employee {
+  name: string;
+  role: string;
+}

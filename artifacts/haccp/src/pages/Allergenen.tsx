@@ -22,7 +22,6 @@ type Val = "" | "y" | "m";
 
 interface Dish { name: string; price: string; cat: string; a: Val[]; }
 
-const CATS = ["ALLE","VORSPEISEN","SUPPEN","SALATE","PASTA","FISCH","VEGETARISCH","FLEISCH","DESSERT","EISCOUPES"] as const;
 const STORAGE_KEY = "haccp:allergenen-matrix";
 const PASSWORD = "Keukendrahtesel";
 
@@ -72,10 +71,10 @@ const DEFAULT_DISHES: Dish[] = [
   { name: "Jagapfandl",                price: "€21", cat: "FLEISCH", a: row("y","y","y","","","","m") },
   { name: "Schnitzel Teller",          price: "€29", cat: "FLEISCH", a: row("y","y","y") },
   // DESSERT
-  { name: "Tiramisu mit Lemon Curd",      price: "€11", cat: "DESSERT",   a: row("y","y","y","","","","","","","m") },
-  { name: "Schokolade Cake",              price: "€9",  cat: "DESSERT",   a: row("y","y","y","","","","","","","","m") },
-  { name: "Zuckerwaffel mit Erdbeeren",   price: "€11", cat: "DESSERT",   a: row("y","y","y") },
-  { name: "Hausgemachter Kaiserschmarrn", price: "€14", cat: "DESSERT",   a: row("y","y","y") },
+  { name: "Tiramisu mit Lemon Curd",      price: "€11", cat: "DESSERT", a: row("y","y","y","","","","","","","m") },
+  { name: "Schokolade Cake",              price: "€9",  cat: "DESSERT", a: row("y","y","y","","","","","","","","m") },
+  { name: "Zuckerwaffel mit Erdbeeren",   price: "€11", cat: "DESSERT", a: row("y","y","y") },
+  { name: "Hausgemachter Kaiserschmarrn", price: "€14", cat: "DESSERT", a: row("y","y","y") },
   // EISCOUPES
   { name: "Karamelbecher",   price: "€8", cat: "EISCOUPES", a: row("","","y","","","y") },
   { name: "Heisse Liebe",    price: "€9", cat: "EISCOUPES", a: row("","","y") },
@@ -174,7 +173,6 @@ function PasswordModal({ onSuccess, onCancel }: { onSuccess: () => void; onCance
 
 export function Allergenen() {
   const [dishes, setDishes] = useState<Dish[]>(loadDishes);
-  const [activeCat, setActiveCat] = useState<string>("ALLE");
   const [excludeAllergens, setExcludeAllergens] = useState<Set<AllergenKey>>(new Set());
   const [editMode, setEditMode] = useState(false);
   const [showPwModal, setShowPwModal] = useState(false);
@@ -205,32 +203,24 @@ export function Allergenen() {
     setShowPwModal(true);
   };
 
-  const resetToDefault = () => {
-    if (!confirm("Alle wijzigingen terugzetten naar de standaardwaarden?")) return;
-    const fresh = DEFAULT_DISHES.map(d => ({ ...d, a: [...d.a] as Val[] }));
-    setDishes(fresh);
-    saveDishes(fresh);
-  };
-
   const filtered = useMemo(() => {
     if (editMode) return dishes.map((d, i) => ({ ...d, _idx: i }));
     return dishes
       .map((d, i) => ({ ...d, _idx: i }))
       .filter(dish => {
-        if (activeCat !== "ALLE" && dish.cat !== activeCat) return false;
         for (const key of excludeAllergens) {
           const idx = ALLERGENS.findIndex(a => a.key === key);
           if (dish.a[idx] !== "") return false;
         }
         return true;
       });
-  }, [activeCat, excludeAllergens, editMode, dishes]);
+  }, [excludeAllergens, editMode, dishes]);
 
   return (
     <div>
       {showPwModal && (
         <PasswordModal
-          onSuccess={() => { setShowPwModal(false); setEditMode(true); setActiveCat("ALLE"); setExcludeAllergens(new Set()); }}
+          onSuccess={() => { setShowPwModal(false); setEditMode(true); setExcludeAllergens(new Set()); }}
           onCancel={() => setShowPwModal(false)}
         />
       )}
@@ -273,24 +263,9 @@ export function Allergenen() {
           </div>
         </div>
 
-        {/* Filter card — hidden in edit mode */}
+        {/* Allergen exclusion filter — hidden in edit mode */}
         {!editMode && (
           <div className="card no-print" style={{ padding: "20px 24px", marginBottom: 16 }}>
-            <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>Filter op categorie</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
-              {CATS.map(cat => (
-                <button key={cat} onClick={() => setActiveCat(cat)}
-                  style={{
-                    padding: "5px 12px", fontSize: 12, fontWeight: activeCat === cat ? 700 : 400,
-                    borderRadius: 4, border: "1px solid var(--border)", cursor: "pointer",
-                    background: activeCat === cat ? "var(--sage)" : "var(--beige-light)",
-                    color: activeCat === cat ? "white" : "var(--text)",
-                    transition: "all 0.15s",
-                  }}>
-                  {cat === "VEGETARISCH" ? "VEGETARISCH & VEGAN" : cat}
-                </button>
-              ))}
-            </div>
             <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>
               Toon alleen gerechten zonder…
             </div>
@@ -404,24 +379,14 @@ export function Allergenen() {
           <span style={{ background: "white", color: "var(--text-muted)", padding: "2px 10px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12 }}>— niet aanwezig</span>
         </div>
 
-        {/* Disclaimer */}
-        <div style={{ marginTop: 14, padding: "14px 18px", background: "#fef9e7", border: "1px solid #f5e079", borderRadius: 8, fontSize: 12, color: "#5a4800", lineHeight: 1.6 }}>
-          ⚠️ Deze allergenenlijst is opgesteld op basis van de ingrediënten van onze recepten (zomer 2026). (✓) = mogelijk aanwezig of te controleren bij leverancier. Kruisbesmetting in onze keuken kan niet volledig worden uitgesloten. Bij ernstige allergieën altijd ons personeel informeren. Laatste update: mei 2026.
-        </div>
-
-        {/* Edit / admin buttons */}
-        <div className="no-print" style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          {editMode && (
-            <button onClick={resetToDefault} className="btn-danger" style={{ fontSize: 12, padding: "8px 16px" }}>
-              Terugzetten naar standaard
-            </button>
-          )}
+        {/* Edit button */}
+        <div className="no-print" style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
           <button
             onClick={handleEditClick}
             className={editMode ? "btn-primary" : "btn-secondary"}
-            style={{ fontSize: 12, padding: "8px 20px", minWidth: 180 }}
+            style={{ fontSize: 12, padding: "8px 20px", minWidth: 140 }}
           >
-            {editMode ? "✓ Bewerken afsluiten" : "🔒 Matrix bewerken"}
+            {editMode ? "✓ Bewerken afsluiten" : "🔒 Bewerken"}
           </button>
         </div>
 

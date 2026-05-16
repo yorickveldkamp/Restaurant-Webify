@@ -19,9 +19,12 @@ import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
 import { Beleid } from "./pages/Beleid";
 import { Allergenen } from "./pages/Allergenen";
+import { Hygiene } from "./pages/Hygiene";
+import { HygieneReport } from "./lib/data";
+import { loadHygieneReports, saveHygieneReports } from "./lib/storage";
 import { Toast } from "./components/Toast";
 
-type Tab = "dashboard" | "temp" | "cleaning" | "delivery" | "reports" | "settings" | "beleid" | "allergenen";
+type Tab = "dashboard" | "temp" | "cleaning" | "delivery" | "hygiene" | "reports" | "settings" | "beleid" | "allergenen";
 
 const NAV: { key: Tab; label: string }[] = [
   { key: "dashboard", label: "Dashboard" },
@@ -30,6 +33,7 @@ const NAV: { key: Tab; label: string }[] = [
   { key: "temp", label: "Temperatuur" },
   { key: "cleaning", label: "Reiniging" },
   { key: "delivery", label: "Levering" },
+  { key: "hygiene", label: "Hygiëne" },
   { key: "reports", label: "Rapporten" },
   { key: "settings", label: "Instellingen" },
 ];
@@ -40,6 +44,7 @@ function MainApp() {
   const [tempReports, setTempReports] = useState<TempReport[]>([]);
   const [cleanReports, setCleanReports] = useState<CleanReport[]>([]);
   const [deliveryReports, setDeliveryReports] = useState<DeliveryReport[]>([]);
+  const [hygieneReports, setHygieneReports] = useState<HygieneReport[]>(() => loadHygieneReports());
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [toast, setToast] = useState("");
@@ -186,6 +191,18 @@ function MainApp() {
     } catch { showToast("Fout bij verwijderen"); }
   };
 
+  const addHygiene = (r: HygieneReport) => {
+    setHygieneReports(prev => [r, ...prev]);
+  };
+
+  const delHygiene = (id: string) => {
+    setHygieneReports(prev => {
+      const next = prev.filter(r => r.id !== id);
+      saveHygieneReports(next);
+      return next;
+    });
+  };
+
   const clearData = async (type: "temp" | "cleaning" | "all") => {
     setSaveStatus("saving");
     try {
@@ -282,7 +299,8 @@ function MainApp() {
             {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} autoFillParaaf={name} />}
             {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} autoFillDoor={name} />}
             {tab === "delivery" && <Delivery onSave={addDelivery} onToast={showToast} autoFillEmployee={name} />}
-            {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} deliveryReports={deliveryReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onDeleteDelivery={delDelivery} onToast={showToast} />}
+            {tab === "hygiene" && <Hygiene leidinggevende={name} onSaveReport={addHygiene} onToast={showToast} />}
+            {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} deliveryReports={deliveryReports} hygieneReports={hygieneReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onDeleteDelivery={delDelivery} onDeleteHygiene={delHygiene} onToast={showToast} />}
             {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} onImportTemp={importTemp} onImportClean={importClean} onToast={showToast} />}
             {tab === "beleid" && <Beleid />}
             {tab === "allergenen" && <Allergenen />}

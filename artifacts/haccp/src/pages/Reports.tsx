@@ -1,17 +1,20 @@
 import { useState } from "react";
-import { TempReport, CleanReport, DeliveryReport, statusLabel } from "../lib/data";
+import { TempReport, CleanReport, DeliveryReport, HygieneReport, HYGIENE_CHECKS, statusLabel } from "../lib/data";
 import { downloadTempReport, downloadCleanReport, downloadDeliveryReport, exportAllTempCSV, exportAllCleanCSV, downloadMonthlyOverview } from "../lib/pdf";
+import { saveHygieneReports } from "../lib/storage";
 
 interface Props {
   tempReports: TempReport[];
   cleanReports: CleanReport[];
   deliveryReports: DeliveryReport[];
+  hygieneReports: HygieneReport[];
   onDeleteTemp: (id: string) => void;
   onDeleteClean: (id: string) => void;
   onDeleteDelivery: (id: string) => void;
+  onDeleteHygiene: (id: string) => void;
   onToast: (msg: string) => void;
 }
-type Tab = "temp" | "clean" | "delivery" | "maand";
+type Tab = "temp" | "clean" | "delivery" | "hygiene" | "maand";
 type CleanFreq = "dagelijks" | "wekelijks" | "maandelijks";
 
 function MonthlyPanel({ tempReports, cleanReports, deliveryReports, onToast }: { tempReports: TempReport[]; cleanReports: CleanReport[]; deliveryReports: DeliveryReport[]; onToast: (m: string) => void }) {
@@ -97,10 +100,10 @@ function MonthlyPanel({ tempReports, cleanReports, deliveryReports, onToast }: {
   );
 }
 
-export function Reports({ tempReports, cleanReports, deliveryReports, onDeleteTemp, onDeleteClean, onDeleteDelivery, onToast }: Props) {
+export function Reports({ tempReports, cleanReports, deliveryReports, hygieneReports, onDeleteTemp, onDeleteClean, onDeleteDelivery, onDeleteHygiene, onToast }: Props) {
   const [tab, setTab] = useState<Tab>("temp");
   const [cleanFreq, setCleanFreq] = useState<CleanFreq>("dagelijks");
-  const tabs: { key: Tab; label: string }[] = [{ key: "temp", label: "Temperatuur" }, { key: "clean", label: "Reiniging" }, { key: "delivery", label: "Levering" }, { key: "maand", label: "Maandoverzicht" }];
+  const tabs: { key: Tab; label: string }[] = [{ key: "temp", label: "Temperatuur" }, { key: "clean", label: "Reiniging" }, { key: "delivery", label: "Levering" }, { key: "hygiene", label: "Hygiëne" }, { key: "maand", label: "Maandoverzicht" }];
   const cleanFreqs: { key: CleanFreq; label: string }[] = [{ key: "dagelijks", label: "Dagelijks" }, { key: "wekelijks", label: "Wekelijks" }, { key: "maandelijks", label: "Maandelijks" }];
 
   const delT = (id: string) => { if (confirm("Verwijderen?")) { onDeleteTemp(id); onToast("Rapport verwijderd"); } };
@@ -255,6 +258,66 @@ export function Reports({ tempReports, cleanReports, deliveryReports, onDeleteTe
                       <button onClick={() => { downloadDeliveryReport(r); onToast("PDF gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">PDF</button>
                       <button onClick={() => { if (confirm("Verwijderen?")) { onDeleteDelivery(r.id); onToast("Rapport verwijderd"); } }} className="btn-danger text-xs py-1.5 px-3">✕</button>
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "hygiene" && (
+        <div className="card overflow-hidden">
+          <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+            <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Hygiënerapporten</span>
+          </div>
+          {hygieneReports.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm italic" style={{ color: "var(--text-muted)" }}>Nog geen hygiënerapporten opgeslagen</div>
+          ) : (
+            <div>
+              {hygieneReports.map((r, i) => {
+                const approved = r.employees.filter(e => e.status === "approved").length;
+                const rejected = r.employees.filter(e => e.status === "rejected").length;
+                const pending  = r.employees.filter(e => e.status === "pending").length;
+                return (
+                  <div key={r.id} className="px-5 py-4"
+                    style={{ borderBottom: i < hygieneReports.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                          {r.date} — {r.shift.charAt(0).toUpperCase() + r.shift.slice(1)}dienst
+                        </div>
+                        <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          Opgeslagen om {r.savedAt} · Door: {r.savedBy || "—"} · {r.employees.length} medewerker{r.employees.length !== 1 ? "s" : ""}
+                        </div>
+                        <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                          {approved > 0 && <span className="badge-ok">{approved} goedgekeurd</span>}
+                          {rejected > 0 && <span className="badge-nok">{rejected} afgekeurd</span>}
+                          {pending > 0  && <span className="badge-warn">{pending} wachtend</span>}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => {
+                            const lines = r.employees.map(e => {
+                              const icon = e.status === "approved" ? "✓" : e.status === "rejected" ? "✕" : "○";
+                              const reason = e.status === "rejected" && e.rejectedReason ? ` — ${e.rejectedReason}` : "";
+                              const checkedCount = e.checks.filter(Boolean).length;
+                              return `${icon} ${e.name} (${e.role}) [${checkedCount}/${HYGIENE_CHECKS.length}]${reason}`;
+                            });
+                            alert(`Hygiënerapport — ${r.date} ${r.shift}dienst\nDoor: ${r.savedBy}\n\n${lines.join("\n")}`);
+                          }}
+                          className="btn-secondary text-xs py-1.5 px-3">Bekijken</button>
+                        <button onClick={() => { if (confirm("Verwijderen?")) { onDeleteHygiene(r.id); onToast("Rapport verwijderd"); } }} className="btn-danger text-xs py-1.5 px-3">✕</button>
+                      </div>
+                    </div>
+                    {rejected > 0 && (
+                      <div style={{ marginTop: 10, padding: "8px 12px", background: "#fdecea", borderRadius: 6, fontSize: 12, color: "#a83232" }}>
+                        {r.employees.filter(e => e.status === "rejected").map(e => (
+                          <div key={e.name}><strong>{e.name}:</strong> {e.rejectedReason}</div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

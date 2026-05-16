@@ -1,4 +1,4 @@
-import { TempReport, CleanReport } from "./data";
+import { TempReport, CleanReport, HygieneReport, Employee } from "./data";
 
 const TEMP_KEY = "haccp:temp-reports";
 const CLEAN_KEY = "haccp:clean-reports";
@@ -49,6 +49,31 @@ export function clearDraft(key: string): void {
 
 export const tempDraftKey = () => TEMP_DRAFT_KEY;
 export const cleanDraftKey = (freq: string) => `${CLEAN_DRAFT_PREFIX}${freq}`;
+
+const HYGIENE_KEY = "haccp:hygiene-reports";
+const EMPLOYEES_KEY = "haccp:hygiene-employees";
+
+export function loadHygieneReports(): HygieneReport[] {
+  try {
+    const raw = localStorage.getItem(HYGIENE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export function saveHygieneReports(reports: HygieneReport[]): void {
+  localStorage.setItem(HYGIENE_KEY, JSON.stringify(reports));
+}
+
+export function loadEmployees(): Employee[] {
+  try {
+    const raw = localStorage.getItem(EMPLOYEES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export function saveEmployees(employees: Employee[]): void {
+  localStorage.setItem(EMPLOYEES_KEY, JSON.stringify(employees));
+}
 
 export function clearTempDraft(): void { clearDraft(TEMP_DRAFT_KEY); }
 export function clearAllCleanDrafts(): void {

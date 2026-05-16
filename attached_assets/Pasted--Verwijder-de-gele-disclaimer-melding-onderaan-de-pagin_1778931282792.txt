@@ -1,0 +1,44 @@
+- Verwijder de gele disclaimer/melding onderaan de pagina volledig
+- Verwijder in de bewerkingsmodus de knop "Terugzetten naar standaard" (reset button)
+- Verander de tekst van de knop "Matrix bewerken" naar "Bewerken"
+- Verwijder de kolom "Filter op categorie" volledig (inclusief de bijbehorende filterlogica)
+
+---
+
+WIJZIGING 2 — Beleidspagina (/beleid)
+- Zoek in de CCP-tabel de rij van CCP 2 (Koude opslag)
+- Verander de tekst in de kolom "Bewaking" van die rij naar: "Dagelijkse Temperatuurmeting"
+
+---
+
+TOEVOEGING — Nieuwe pagina: Persoonlijke Hygiëne (/hygiene)
+Maak een nieuwe pagina die zichtbaar is in het hoofdnavigatiemenu van de app.
+
+DOEL VAN DE PAGINA:
+Een HACCP-conforme registratietool waarmee leidinggevenden bij aanvang van elke dienst de persoonlijke hygiëne van elke medewerker kunnen goedkeuren of afkeuren, inclusief registratie, geschiedenis en corrigerende maatregelen.
+
+FUNCTIONALITEITEN:
+
+1. MEDEWERKERSLIJST
+- Toon een lijst van medewerkers (namen instelbaar via een beheerscherm of hardcoded als startpunt: Sep, Yorick, Wieke, Britt + optie om medewerkers toe te voegen/verwijderen)
+- Per medewerker een kaart/rij met naam, functie en de huidige dienststatus
+
+2. DAGELIJKSE HYGIËNECONTROLE
+Per medewerker kunnen de volgende HACCP-controlepunten worden aangevinkt (checkboxes):
+- Handen gewassen en gedesinfecteerd
+- Schone werkkleding aan
+- Haar opgebonden of haarnetje gedragen
+- Geen sieraden (ringen, armbanden, oorringen)
+- Nagels kort en schoon, geen nagellak
+- Geen zichtbare wonden of infecties aan handen
+- Geen tekenen van ziekte (koorts, diarree, braken)
+- Persoonlijke hygiënetraining up-to-date
+
+3. GOEDKEURING / AFKEURING
+- Grote groene knop "Goedkeuren" als alle punten zijn aangevinkt
+- Rode knop "Afkeuren" als één of meer punten niet zijn aangevinkt, met verplicht invulveld voor de reden van afkeuring
+- Bij afkeuring: automatisch een corrigerende maatregel registreren met tijdstempel, naam leidinggevende en beschrijving van het probleem
+- Afgekeurde medewerker wordt duidelijk visueel gemarkeerd (rode rand/achtergrond op de kaart)
+- Optie om een afgekeurde medewerker later alsnog goed te keuren na correctie
+
+Maak van deze Functionaliteiten ook rapporten die op de rapporten pagina te vinden zijn  

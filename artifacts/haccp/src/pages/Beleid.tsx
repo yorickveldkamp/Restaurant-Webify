@@ -89,7 +89,7 @@ export function Beleid() {
                 <tbody>
                   {[
                     ["CCP 1","Goederenontvangst","Microbiologische besmetting, verkeerde temperatuur","Gekoeld ≤4°C, diepvries ≤-18°C","Visuele controle + thermometer bij elke levering","Weigering bij overschrijding"],
-                    ["CCP 2","Koude opslag","Bacteriegroei","Koelkast 2–4°C, diepvries ≤-18°C","2x daags temperatuurmeting","Product verplaatsen of vernietigen bij >7°C"],
+                    ["CCP 2","Koude opslag","Bacteriegroei","Koelkast 2–4°C, diepvries ≤-18°C","Dagelijkse Temperatuurmeting","Product verplaatsen of vernietigen bij >7°C"],
                     ["CCP 3","Verhitting/Bereiding","Overleven pathogenen (Salmonella, Listeria, E. coli)","Kerntemperatuur ≥75°C (gevogelte ≥80°C)","Kernthermometer per bereidingsproces","Verder verhitten of vernietigen"],
                     ["CCP 4","Warm houden","Bacteriegroei","≥65°C, max. 3 uur","Temperatuurmeting elk uur","Opnieuw verhitten tot ≥75°C of vernietigen"],
                     ["CCP 5","Afkoeling","Bacteriegroei bij langzame afkoeling","Van >65°C naar <10°C binnen 2 uur (blast chiller)","Meting na afkoelproces","Vernietigen bij overschrijding"],
