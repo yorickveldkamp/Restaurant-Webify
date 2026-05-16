@@ -1,52 +1,47 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
 const ALLERGENS = [
-  { key: "gluten",    label: "Gluten",       icon: "🌾" },
-  { key: "ei",        label: "Eieren",       icon: "🥚" },
-  { key: "melk",      label: "Melk",         icon: "🥛" },
-  { key: "vis",       label: "Vis",          icon: "🐟" },
-  { key: "schaal",    label: "Schaaldieren", icon: "🦐" },
-  { key: "noten",     label: "Noten",        icon: "🌰" },
-  { key: "selderij",  label: "Selderij",     icon: "🌿" },
-  { key: "mosterd",   label: "Mosterd",      icon: "🟡" },
-  { key: "sesam",     label: "Sesam",        icon: "⚪" },
-  { key: "sulfiet",   label: "Sulfiet/SO₂",  icon: "🍷" },
-  { key: "soja",      label: "Soja",         icon: "🫘" },
-  { key: "pinda",     label: "Pinda's",      icon: "🥜" },
-  { key: "lupine",    label: "Lupine",       icon: "🌸" },
-  { key: "week",      label: "Weekdieren",   icon: "🐚" },
+  { key: "gluten",   label: "Gluten",       icon: "🌾" },
+  { key: "ei",       label: "Eieren",       icon: "🥚" },
+  { key: "melk",     label: "Melk",         icon: "🥛" },
+  { key: "vis",      label: "Vis",          icon: "🐟" },
+  { key: "schaal",   label: "Schaaldieren", icon: "🦐" },
+  { key: "noten",    label: "Noten",        icon: "🌰" },
+  { key: "selderij", label: "Selderij",     icon: "🌿" },
+  { key: "mosterd",  label: "Mosterd",      icon: "🟡" },
+  { key: "sesam",    label: "Sesam",        icon: "⚪" },
+  { key: "sulfiet",  label: "Sulfiet/SO₂",  icon: "🍷" },
+  { key: "soja",     label: "Soja",         icon: "🫘" },
+  { key: "pinda",    label: "Pinda's",      icon: "🥜" },
+  { key: "lupine",   label: "Lupine",       icon: "🌸" },
+  { key: "week",     label: "Weekdieren",   icon: "🐚" },
 ] as const;
 
 type AllergenKey = typeof ALLERGENS[number]["key"];
-// "" = none, "y" = present, "m" = may contain
 type Val = "" | "y" | "m";
 
-interface Dish {
-  name: string;
-  price: string;
-  cat: string;
-  a: Val[]; // 14 values in allergen order above
-}
+interface Dish { name: string; price: string; cat: string; a: Val[]; }
 
 const CATS = ["ALLE","VORSPEISEN","SUPPEN","SALATE","PASTA","FISCH","VEGETARISCH","FLEISCH","DESSERT","EISCOUPES"] as const;
+const STORAGE_KEY = "haccp:allergenen-matrix";
+const PASSWORD = "Keukendrahtesel";
 
-// Helper: build 14-element array; provide only non-empty positions
 function row(...vals: (Val | undefined)[]): Val[] {
   return Array.from({ length: 14 }, (_, i) => vals[i] ?? "") as Val[];
 }
 
-const DISHES: Dish[] = [
+const DEFAULT_DISHES: Dish[] = [
   // VORSPEISEN
-  { name: "Knoblauchbrot",            price: "€5",  cat: "VORSPEISEN",    a: row("y","","y") },
-  { name: "Bruschetta",               price: "€8",  cat: "VORSPEISEN",    a: row("y") },
-  { name: "Burrata",                  price: "€10", cat: "VORSPEISEN",    a: row("y","","y","","","y") },
-  { name: "Brotkorb",                 price: "€12", cat: "VORSPEISEN",    a: row("y","m","y") },
-  { name: "Garnelen",                 price: "€12", cat: "VORSPEISEN",    a: row("","","","","y") },
-  { name: "Carpaccio vom Rind",       price: "€14", cat: "VORSPEISEN",    a: row("","y","y","","","y","","m") },
-  { name: "Überraschung Vorspeisen",  price: "€19", cat: "VORSPEISEN",    a: row("m") },
+  { name: "Knoblauchbrot",            price: "€5",  cat: "VORSPEISEN",   a: row("y","","y") },
+  { name: "Bruschetta",               price: "€8",  cat: "VORSPEISEN",   a: row("y") },
+  { name: "Burrata",                  price: "€10", cat: "VORSPEISEN",   a: row("y","","y","","","y") },
+  { name: "Brotkorb",                 price: "€12", cat: "VORSPEISEN",   a: row("y","m","y") },
+  { name: "Garnelen",                 price: "€12", cat: "VORSPEISEN",   a: row("","","","","y") },
+  { name: "Carpaccio vom Rind",       price: "€14", cat: "VORSPEISEN",   a: row("","y","y","","","y","","m") },
+  { name: "Überraschung Vorspeisen",  price: "€19", cat: "VORSPEISEN",   a: row("m") },
   // SUPPEN
-  { name: "Tomatensuppe",             price: "€6",  cat: "SUPPEN",        a: row("","","y") },
-  { name: "Fritattensuppe",           price: "€6",  cat: "SUPPEN",        a: row("y","y","","","","","m") },
+  { name: "Tomatensuppe",             price: "€6",  cat: "SUPPEN",       a: row("","","y") },
+  { name: "Fritattensuppe",           price: "€6",  cat: "SUPPEN",       a: row("y","y","","","","","m") },
   // SALATE
   { name: "Salat Pfirsich & Burrata",         price: "€15", cat: "SALATE", a: row("","","y","","","y","","","","m") },
   { name: "Salat Falafel & Gemüse (Vegan)",   price: "€15", cat: "SALATE", a: row("m","","","","","","m") },
@@ -60,27 +55,27 @@ const DISHES: Dish[] = [
   // FISCH
   { name: "Lachs mit Wallnusskruste", price: "€23", cat: "FISCH", a: row("","","y","y","","y") },
   { name: "Lachs mit Garnelen",       price: "€26", cat: "FISCH", a: row("","","","y","y") },
-  // VEGETARISCH & VEGAN
+  // VEGETARISCH
   { name: "Flatbread Falafel & Tzatziki", price: "€16", cat: "VEGETARISCH", a: row("y","","y","","","","","","m") },
   { name: "Kasnocken",                    price: "€16", cat: "VEGETARISCH", a: row("y","y","y") },
   { name: "Veganer Burger",               price: "€18", cat: "VEGETARISCH", a: row("y","","","","","","","","","","m","","m") },
   { name: "Käsefondue",                   price: "€25", cat: "VEGETARISCH", a: row("y","","y","","","","","","","y") },
   // FLEISCH
-  { name: "Wiener Schnitzel",         price: "€18", cat: "FLEISCH", a: row("y","y") },
-  { name: "Cordon Bleu",              price: "€20", cat: "FLEISCH", a: row("y","y","y") },
-  { name: "Mühlbacher Schnitzel",     price: "€24", cat: "FLEISCH", a: row("y","y","y") },
-  { name: "Pulled Chicken Burger",    price: "€21", cat: "FLEISCH", a: row("y") },
-  { name: "Hühnerspies Tzatziki",     price: "€23", cat: "FLEISCH", a: row("","","y") },
-  { name: "Rumpsteak Chimichurri",    price: "€29", cat: "FLEISCH", a: row("","","","","","","m") },
-  { name: "Spare Ribs",               price: "€23", cat: "FLEISCH", a: row("","","","","","","","","","m") },
-  { name: "Drahtesel Mix",            price: "€29", cat: "FLEISCH", a: row("y","y","","","","","","","","m") },
-  { name: "Jagapfandl",               price: "€21", cat: "FLEISCH", a: row("y","y","y","","","","m") },
-  { name: "Schnitzel Teller",         price: "€29", cat: "FLEISCH", a: row("y","y","y") },
+  { name: "Wiener Schnitzel",          price: "€18", cat: "FLEISCH", a: row("y","y") },
+  { name: "Cordon Bleu",               price: "€20", cat: "FLEISCH", a: row("y","y","y") },
+  { name: "Mühlbacher Schnitzel",      price: "€24", cat: "FLEISCH", a: row("y","y","y") },
+  { name: "Pulled Chicken Burger",     price: "€21", cat: "FLEISCH", a: row("y") },
+  { name: "Hühnerspies Tzatziki",      price: "€23", cat: "FLEISCH", a: row("","","y") },
+  { name: "Rumpsteak Chimichurri",     price: "€29", cat: "FLEISCH", a: row("","","","","","","m") },
+  { name: "Spare Ribs",                price: "€23", cat: "FLEISCH", a: row("","","","","","","","","","m") },
+  { name: "Drahtesel Mix",             price: "€29", cat: "FLEISCH", a: row("y","y","","","","","","","","m") },
+  { name: "Jagapfandl",                price: "€21", cat: "FLEISCH", a: row("y","y","y","","","","m") },
+  { name: "Schnitzel Teller",          price: "€29", cat: "FLEISCH", a: row("y","y","y") },
   // DESSERT
-  { name: "Tiramisu mit Lemon Curd",     price: "€11", cat: "DESSERT",    a: row("y","y","y","","","","","","","m") },
-  { name: "Schokolade Cake",             price: "€9",  cat: "DESSERT",    a: row("y","y","y","","","","","","","","m") },
-  { name: "Zuckerwaffel mit Erdbeeren",  price: "€11", cat: "DESSERT",    a: row("y","y","y") },
-  { name: "Hausgemachter Kaiserschmarrn",price: "€14", cat: "DESSERT",    a: row("y","y","y") },
+  { name: "Tiramisu mit Lemon Curd",      price: "€11", cat: "DESSERT",   a: row("y","y","y","","","","","","","m") },
+  { name: "Schokolade Cake",              price: "€9",  cat: "DESSERT",   a: row("y","y","y","","","","","","","","m") },
+  { name: "Zuckerwaffel mit Erdbeeren",   price: "€11", cat: "DESSERT",   a: row("y","y","y") },
+  { name: "Hausgemachter Kaiserschmarrn", price: "€14", cat: "DESSERT",   a: row("y","y","y") },
   // EISCOUPES
   { name: "Karamelbecher",   price: "€8", cat: "EISCOUPES", a: row("","","y","","","y") },
   { name: "Heisse Liebe",    price: "€9", cat: "EISCOUPES", a: row("","","y") },
@@ -89,30 +84,104 @@ const DISHES: Dish[] = [
   { name: "Joghurt Amarena", price: "€8", cat: "EISCOUPES", a: row("","","y") },
 ];
 
-function AllergenBadge({ allergen }: { allergen: typeof ALLERGENS[number] }) {
+function loadDishes(): Dish[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored) as Dish[];
+  } catch { /* ignore */ }
+  return DEFAULT_DISHES.map(d => ({ ...d, a: [...d.a] as Val[] }));
+}
+
+function saveDishes(dishes: Dish[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(dishes)); } catch { /* ignore */ }
+}
+
+function nextVal(v: Val): Val {
+  if (v === "") return "y";
+  if (v === "y") return "m";
+  return "";
+}
+
+function ValCell({ val, editMode, onClick }: { val: Val; editMode: boolean; onClick?: () => void }) {
+  if (editMode) {
+    return (
+      <td
+        onClick={onClick}
+        title="Klik om te wisselen: leeg → ✓ → (✓) → leeg"
+        style={{
+          textAlign: "center", cursor: "pointer", userSelect: "none",
+          background: val === "y" ? "#fdecea" : val === "m" ? "#fef9e7" : "transparent",
+          transition: "background 0.1s",
+          outline: "1px dashed var(--border)",
+        }}
+      >
+        {val === "y" && <span style={{ color: "#a83232", fontWeight: 700, fontSize: 13 }}>✓</span>}
+        {val === "m" && <span style={{ color: "#8a6800", fontWeight: 600, fontSize: 12 }}>(✓)</span>}
+        {val === "" && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
+      </td>
+    );
+  }
+  if (val === "y") return <td style={{ textAlign: "center", background: "#fdecea", color: "#a83232", fontWeight: 700, fontSize: 13 }}>✓</td>;
+  if (val === "m") return <td style={{ textAlign: "center", background: "#fef9e7", color: "#8a6800", fontWeight: 600, fontSize: 12 }}>(✓)</td>;
+  return <td style={{ textAlign: "center", color: "var(--beige)" }}>—</td>;
+}
+
+function PasswordModal({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50); }, []);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pw === PASSWORD) { onSuccess(); }
+    else { setErr(true); setPw(""); setTimeout(() => setErr(false), 1800); }
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 56 }}>
-      <span style={{ fontSize: 22 }}>{allergen.icon}</span>
-      <span style={{ fontSize: 9.5, fontWeight: 600, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.2 }}>{allergen.label}</span>
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(26,26,26,0.45)", zIndex: 1000,
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <div className="card" style={{ padding: "32px 36px", width: 340, maxWidth: "90vw" }}>
+        <div className="text-xs font-semibold tracking-widest uppercase mb-4" style={{ color: "var(--text-muted)" }}>
+          Beheertoegang vereist
+        </div>
+        <p className="text-sm mb-5" style={{ color: "var(--text)", lineHeight: 1.55 }}>
+          Voer het beheerwachtwoord in om de allergenenmatrix te bewerken.
+        </p>
+        <form onSubmit={submit} className="space-y-4">
+          <input
+            ref={inputRef}
+            type="password"
+            className="input-brand w-full"
+            placeholder="Wachtwoord…"
+            value={pw}
+            onChange={e => setPw(e.target.value)}
+            style={{ borderColor: err ? "var(--danger)" : undefined }}
+          />
+          {err && <p style={{ color: "var(--danger)", fontSize: 12, marginTop: -8 }}>Onjuist wachtwoord. Probeer opnieuw.</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="submit" className="btn-primary" style={{ flex: 1 }}>Bevestigen</button>
+            <button type="button" onClick={onCancel} className="btn-secondary" style={{ flex: 1 }}>Annuleren</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
 
-function ValCell({ val }: { val: Val }) {
-  if (val === "y") return (
-    <td style={{ textAlign: "center", background: "#fdecea", color: "#a83232", fontWeight: 700, fontSize: 13 }}>✓</td>
-  );
-  if (val === "m") return (
-    <td style={{ textAlign: "center", background: "#fef9e7", color: "#8a6800", fontWeight: 600, fontSize: 12 }}>(✓)</td>
-  );
-  return <td style={{ textAlign: "center", color: "var(--beige)" }}>—</td>;
-}
-
 export function Allergenen() {
+  const [dishes, setDishes] = useState<Dish[]>(loadDishes);
   const [activeCat, setActiveCat] = useState<string>("ALLE");
   const [excludeAllergens, setExcludeAllergens] = useState<Set<AllergenKey>>(new Set());
+  const [editMode, setEditMode] = useState(false);
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [saveFlash, setSaveFlash] = useState(false);
 
   const toggleExclude = (key: AllergenKey) => {
+    if (editMode) return;
     setExcludeAllergens(prev => {
       const next = new Set(prev);
       next.has(key) ? next.delete(key) : next.add(key);
@@ -120,22 +189,63 @@ export function Allergenen() {
     });
   };
 
-  const filtered = useMemo(() => {
-    return DISHES.filter(dish => {
-      if (activeCat !== "ALLE" && dish.cat !== activeCat) return false;
-      for (const key of excludeAllergens) {
-        const idx = ALLERGENS.findIndex(a => a.key === key);
-        if (dish.a[idx] !== "") return false;
-      }
-      return true;
+  const toggleCell = (dishIdx: number, allergenIdx: number) => {
+    setDishes(prev => {
+      const next = prev.map(d => ({ ...d, a: [...d.a] as Val[] }));
+      next[dishIdx].a[allergenIdx] = nextVal(next[dishIdx].a[allergenIdx]);
+      saveDishes(next);
+      return next;
     });
-  }, [activeCat, excludeAllergens]);
+    setSaveFlash(true);
+    setTimeout(() => setSaveFlash(false), 1200);
+  };
+
+  const handleEditClick = () => {
+    if (editMode) { setEditMode(false); return; }
+    setShowPwModal(true);
+  };
+
+  const resetToDefault = () => {
+    if (!confirm("Alle wijzigingen terugzetten naar de standaardwaarden?")) return;
+    const fresh = DEFAULT_DISHES.map(d => ({ ...d, a: [...d.a] as Val[] }));
+    setDishes(fresh);
+    saveDishes(fresh);
+  };
+
+  const filtered = useMemo(() => {
+    if (editMode) return dishes.map((d, i) => ({ ...d, _idx: i }));
+    return dishes
+      .map((d, i) => ({ ...d, _idx: i }))
+      .filter(dish => {
+        if (activeCat !== "ALLE" && dish.cat !== activeCat) return false;
+        for (const key of excludeAllergens) {
+          const idx = ALLERGENS.findIndex(a => a.key === key);
+          if (dish.a[idx] !== "") return false;
+        }
+        return true;
+      });
+  }, [activeCat, excludeAllergens, editMode, dishes]);
 
   return (
     <div>
+      {showPwModal && (
+        <PasswordModal
+          onSuccess={() => { setShowPwModal(false); setEditMode(true); setActiveCat("ALLE"); setExcludeAllergens(new Set()); }}
+          onCancel={() => setShowPwModal(false)}
+        />
+      )}
+
       {/* Print button */}
-      <div className="no-print flex justify-end mb-4">
-        <button onClick={() => window.print()} className="btn-primary" style={{ minWidth: 180 }}>
+      <div className="no-print flex justify-between items-center mb-4">
+        {editMode ? (
+          <div className="flex items-center gap-3">
+            <span style={{ fontSize: 12, color: "var(--sage-dark)", fontWeight: 600 }}>
+              ✏️ Bewerkingsmodus actief — klik een cel om te wisselen
+            </span>
+            {saveFlash && <span style={{ fontSize: 12, color: "var(--sage-dark)" }}>✓ Opgeslagen</span>}
+          </div>
+        ) : <div />}
+        <button onClick={() => window.print()} className="btn-secondary" style={{ minWidth: 160 }}>
           Afdrukken / PDF
         </button>
       </div>
@@ -153,68 +263,78 @@ export function Allergenen() {
               Conform EU-Verordening Nr. 1169/2011 zijn wij verplicht de 14 belangrijkste allergenen te vermelden. Neem bij twijfel altijd contact op met ons personeel. Kruisbesmetting in de keuken kan niet volledig worden uitgesloten.
             </p>
           </div>
-
-          {/* 14 allergen legend */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            {ALLERGENS.map(a => <AllergenBadge key={a.key} allergen={a} />)}
-          </div>
-        </div>
-
-        {/* Filter card */}
-        <div className="card no-print" style={{ padding: "20px 24px", marginBottom: 16 }}>
-          {/* Category filter */}
-          <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>
-            Filter op categorie
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
-            {CATS.map(cat => (
-              <button key={cat} onClick={() => setActiveCat(cat)}
-                style={{
-                  padding: "5px 12px", fontSize: 12, fontWeight: activeCat === cat ? 700 : 400,
-                  borderRadius: 4, border: "1px solid var(--border)", cursor: "pointer",
-                  background: activeCat === cat ? "var(--sage)" : "var(--beige-light)",
-                  color: activeCat === cat ? "white" : "var(--text)",
-                  transition: "all 0.15s",
-                }}>
-                {cat === "VEGETARISCH" ? "VEGETARISCH & VEGAN" : cat}
-              </button>
+            {ALLERGENS.map(a => (
+              <div key={a.key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 56 }}>
+                <span style={{ fontSize: 22 }}>{a.icon}</span>
+                <span style={{ fontSize: 9.5, fontWeight: 600, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.2 }}>{a.label}</span>
+              </div>
             ))}
           </div>
-
-          {/* Allergen exclude toggles */}
-          <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>
-            Toon alleen gerechten zonder…
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {ALLERGENS.map(a => {
-              const active = excludeAllergens.has(a.key);
-              return (
-                <button key={a.key} onClick={() => toggleExclude(a.key)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    padding: "5px 11px", fontSize: 12, fontWeight: active ? 700 : 400,
-                    borderRadius: 4, cursor: "pointer", transition: "all 0.15s",
-                    border: active ? "1px solid #a83232" : "1px solid var(--border)",
-                    background: active ? "#fdecea" : "var(--beige-light)",
-                    color: active ? "#a83232" : "var(--text)",
-                  }}>
-                  <span>{a.icon}</span> {a.label}
-                </button>
-              );
-            })}
-          </div>
-          {excludeAllergens.size > 0 && (
-            <button onClick={() => setExcludeAllergens(new Set())}
-              style={{ marginTop: 10, fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-              Wis filters
-            </button>
-          )}
         </div>
+
+        {/* Filter card — hidden in edit mode */}
+        {!editMode && (
+          <div className="card no-print" style={{ padding: "20px 24px", marginBottom: 16 }}>
+            <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>Filter op categorie</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+              {CATS.map(cat => (
+                <button key={cat} onClick={() => setActiveCat(cat)}
+                  style={{
+                    padding: "5px 12px", fontSize: 12, fontWeight: activeCat === cat ? 700 : 400,
+                    borderRadius: 4, border: "1px solid var(--border)", cursor: "pointer",
+                    background: activeCat === cat ? "var(--sage)" : "var(--beige-light)",
+                    color: activeCat === cat ? "white" : "var(--text)",
+                    transition: "all 0.15s",
+                  }}>
+                  {cat === "VEGETARISCH" ? "VEGETARISCH & VEGAN" : cat}
+                </button>
+              ))}
+            </div>
+            <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>
+              Toon alleen gerechten zonder…
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {ALLERGENS.map(a => {
+                const active = excludeAllergens.has(a.key);
+                return (
+                  <button key={a.key} onClick={() => toggleExclude(a.key)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "5px 11px", fontSize: 12, fontWeight: active ? 700 : 400,
+                      borderRadius: 4, cursor: "pointer", transition: "all 0.15s",
+                      border: active ? "1px solid #a83232" : "1px solid var(--border)",
+                      background: active ? "#fdecea" : "var(--beige-light)",
+                      color: active ? "#a83232" : "var(--text)",
+                    }}>
+                    <span>{a.icon}</span> {a.label}
+                  </button>
+                );
+              })}
+            </div>
+            {excludeAllergens.size > 0 && (
+              <button onClick={() => setExcludeAllergens(new Set())}
+                style={{ marginTop: 10, fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                Wis filters
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Edit mode banner */}
+        {editMode && (
+          <div className="no-print" style={{ marginBottom: 12, padding: "12px 18px", background: "#fef9e7", border: "1px solid #f5e079", borderRadius: 8, fontSize: 13, color: "#5a4800", display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>✏️</span>
+            <span><strong>Bewerkingsmodus:</strong> klik op een cel om te wisselen tussen <strong>leeg → ✓ → (✓) → leeg</strong>. Wijzigingen worden automatisch opgeslagen.</span>
+          </div>
+        )}
 
         {/* Results count */}
-        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8, paddingLeft: 4 }}>
-          {filtered.length} gerecht{filtered.length !== 1 ? "en" : ""} weergegeven
-        </div>
+        {!editMode && (
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8, paddingLeft: 4 }}>
+            {filtered.length} gerecht{filtered.length !== 1 ? "en" : ""} weergegeven
+          </div>
+        )}
 
         {/* Matrix table */}
         <div className="card" style={{ overflowX: "auto" }}>
@@ -241,25 +361,32 @@ export function Allergenen() {
                   </td>
                 </tr>
               ) : (() => {
-                const cats = CATS.filter(c => c !== "ALLE");
                 const result: React.ReactNode[] = [];
                 let lastCat = "";
-                filtered.forEach((dish, i) => {
+                filtered.forEach((dish, rowI) => {
                   if (dish.cat !== lastCat) {
                     lastCat = dish.cat;
                     result.push(
-                      <tr key={`cat-${dish.cat}`}>
+                      <tr key={`cat-${dish.cat}-${rowI}`}>
                         <td colSpan={16} style={{ padding: "8px 12px", background: "var(--beige-light)", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", borderTop: result.length ? "1px solid var(--border)" : "none" }}>
                           {dish.cat === "VEGETARISCH" ? "Vegetarisch & Vegan" : dish.cat.charAt(0) + dish.cat.slice(1).toLowerCase()}
                         </td>
                       </tr>
                     );
                   }
+                  const dishIdx = dish._idx;
                   result.push(
-                    <tr key={dish.name} style={{ background: i % 2 === 0 ? "white" : "var(--beige-light)" }}>
+                    <tr key={dish.name} style={{ background: rowI % 2 === 0 ? "white" : "var(--beige-light)" }}>
                       <td style={{ padding: "7px 12px", fontWeight: 500, color: "var(--text)", position: "sticky", left: 0, background: "inherit", borderRight: "1px solid var(--border)" }}>{dish.name}</td>
                       <td style={{ padding: "7px 10px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>{dish.price}</td>
-                      {dish.a.map((v, ai) => <ValCell key={ai} val={v} />)}
+                      {dish.a.map((v, ai) => (
+                        <ValCell
+                          key={ai}
+                          val={v}
+                          editMode={editMode}
+                          onClick={editMode ? () => toggleCell(dishIdx, ai) : undefined}
+                        />
+                      ))}
                     </tr>
                   );
                 });
@@ -281,6 +408,23 @@ export function Allergenen() {
         <div style={{ marginTop: 14, padding: "14px 18px", background: "#fef9e7", border: "1px solid #f5e079", borderRadius: 8, fontSize: 12, color: "#5a4800", lineHeight: 1.6 }}>
           ⚠️ Deze allergenenlijst is opgesteld op basis van de ingrediënten van onze recepten (zomer 2026). (✓) = mogelijk aanwezig of te controleren bij leverancier. Kruisbesmetting in onze keuken kan niet volledig worden uitgesloten. Bij ernstige allergieën altijd ons personeel informeren. Laatste update: mei 2026.
         </div>
+
+        {/* Edit / admin buttons */}
+        <div className="no-print" style={{ marginTop: 24, display: "flex", gap: 12, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          {editMode && (
+            <button onClick={resetToDefault} className="btn-danger" style={{ fontSize: 12, padding: "8px 16px" }}>
+              Terugzetten naar standaard
+            </button>
+          )}
+          <button
+            onClick={handleEditClick}
+            className={editMode ? "btn-primary" : "btn-secondary"}
+            style={{ fontSize: 12, padding: "8px 20px", minWidth: 180 }}
+          >
+            {editMode ? "✓ Bewerken afsluiten" : "🔒 Matrix bewerken"}
+          </button>
+        </div>
+
       </div>
 
       <style>{`
@@ -288,7 +432,9 @@ export function Allergenen() {
           .no-print { display: none !important; }
           body { background: white !important; }
           table th, table td { font-size: 9px !important; padding: 4px 5px !important; }
-          table th[style*="background"] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          table td[style*="fdecea"] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          table td[style*="fef9e7"] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       `}</style>
     </div>
