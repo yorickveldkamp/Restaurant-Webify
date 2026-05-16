@@ -23,7 +23,7 @@ export function Beleid() {
             HACCP-Beleid — Der Drahtesel Hotel Restaurant
           </h1>
           <div className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Versie 1.0 &nbsp;·&nbsp; Datum: [invullen] &nbsp;·&nbsp; Volgende review: [+1 jaar]
+            Versie 1.0 &nbsp;·&nbsp; Datum: 16 mei 2026 &nbsp;·&nbsp; Volgende review: 16 mei 2027
           </div>
         </div>
 
@@ -37,7 +37,7 @@ export function Beleid() {
             </p>
             <p className="policy-text">
               Dit beleid is van toepassing op alle voedselbereiding, opslag, verwerking en servering in Der Drahtesel.
-              Verantwoordelijke: <strong>Merel Fidom</strong>, Küchenchef / Betriebsleiter.
+              Verantwoordelijke: <strong>Merel Fidom</strong>, Betriebsleiter.
             </p>
           </section>,
 
@@ -83,19 +83,19 @@ export function Beleid() {
               <table className="policy-table">
                 <thead>
                   <tr>
-                    <th>CCP</th><th>Locatie/Stap</th><th>Gevaar</th><th>Kritische Grens</th><th>Bewaking</th><th>Corrigerende Maatregel</th><th>Registratie in app</th>
+                    <th>CCP</th><th>Locatie/Stap</th><th>Gevaar</th><th>Kritische Grens</th><th>Bewaking</th><th>Corrigerende Maatregel</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    ["CCP 1","Goederenontvangst","Microbiologische besmetting, verkeerde temperatuur","Gekoeld ≤4°C, diepvries ≤-18°C","Visuele controle + thermometer bij elke levering","Weigering bij overschrijding","App: Goederenontvangst"],
-                    ["CCP 2","Koude opslag","Bacteriegroei","Koelkast 2–4°C, diepvries ≤-18°C","2x daags temperatuurmeting","Product verplaatsen of vernietigen bij >7°C","App: Koelkast temperaturen"],
-                    ["CCP 3","Verhitting/Bereiding","Overleven pathogenen (Salmonella, Listeria, E. coli)","Kerntemperatuur ≥75°C (gevogelte ≥80°C)","Kernthermometer per bereidingsproces","Verder verhitten of vernietigen","App: Kerntemperaturen"],
-                    ["CCP 4","Warm houden","Bacteriegroei","≥65°C, max. 3 uur","Temperatuurmeting elk uur","Opnieuw verhitten tot ≥75°C of vernietigen","App: Warmhoud temperaturen"],
-                    ["CCP 5","Afkoeling","Bacteriegroei bij langzame afkoeling","Van >65°C naar <10°C binnen 2 uur (blast chiller)","Meting na afkoelproces","Vernietigen bij overschrijding","App: Afkoeltemperaturen"],
-                    ["CCP 6","Persoonlijke hygiëne","Kruisbesmetting via personeel","Geen infecties zichtbaar, correcte handhygiëne","Dagelijkse visuele controle Küchenchef","Medewerker vrijstellen van voedselbereiding","App: Hygiënecontrole personeel"],
-                    ["CCP 7","Reiniging & Desinfectie","Kruisbesmetting via oppervlakken","Reinigingsschema volledig uitgevoerd","Dagelijks/wekelijks/maandelijks reinigingsschema","Onmiddellijk hernemen, registreren","App: Reiniging & Desinfectie"],
-                    ["CCP 8","Allergenen","Allergische reacties","14 EU-allergenen correct gelabeld per gerecht","Allergenenmatrix bijgehouden per menu","Direct aanpassen, gast informeren","App: Allergenen"],
+                    ["CCP 1","Goederenontvangst","Microbiologische besmetting, verkeerde temperatuur","Gekoeld ≤4°C, diepvries ≤-18°C","Visuele controle + thermometer bij elke levering","Weigering bij overschrijding"],
+                    ["CCP 2","Koude opslag","Bacteriegroei","Koelkast 2–4°C, diepvries ≤-18°C","2x daags temperatuurmeting","Product verplaatsen of vernietigen bij >7°C"],
+                    ["CCP 3","Verhitting/Bereiding","Overleven pathogenen (Salmonella, Listeria, E. coli)","Kerntemperatuur ≥75°C (gevogelte ≥80°C)","Kernthermometer per bereidingsproces","Verder verhitten of vernietigen"],
+                    ["CCP 4","Warm houden","Bacteriegroei","≥65°C, max. 3 uur","Temperatuurmeting elk uur","Opnieuw verhitten tot ≥75°C of vernietigen"],
+                    ["CCP 5","Afkoeling","Bacteriegroei bij langzame afkoeling","Van >65°C naar <10°C binnen 2 uur (blast chiller)","Meting na afkoelproces","Vernietigen bij overschrijding"],
+                    ["CCP 6","Persoonlijke hygiëne","Kruisbesmetting via personeel","Geen infecties zichtbaar, correcte handhygiëne","Dagelijkse visuele controle Küchenchef","Medewerker vrijstellen van voedselbereiding"],
+                    ["CCP 7","Reiniging & Desinfectie","Kruisbesmetting via oppervlakken","Reinigingsschema volledig uitgevoerd","Dagelijks/wekelijks/maandelijks reinigingsschema","Onmiddellijk hernemen, registreren"],
+                    ["CCP 8","Allergenen","Allergische reacties","14 EU-allergenen correct gelabeld per gerecht","Allergenenmatrix bijgehouden per menu","Direct aanpassen, gast informeren"],
                   ].map(r => (
                     <tr key={r[0]}>
                       {r.map((c, i) => <td key={i} style={i === 0 ? { fontWeight: 700, whiteSpace: "nowrap" } : {}}>{c}</td>)}
