@@ -1,18 +1,20 @@
 import { useState } from "react";
-import { TempReport, CleanReport, statusLabel } from "../lib/data";
-import { downloadTempReport, downloadCleanReport, exportAllTempCSV, exportAllCleanCSV, downloadMonthlyOverview } from "../lib/pdf";
+import { TempReport, CleanReport, DeliveryReport, statusLabel } from "../lib/data";
+import { downloadTempReport, downloadCleanReport, downloadDeliveryReport, exportAllTempCSV, exportAllCleanCSV, downloadMonthlyOverview } from "../lib/pdf";
 
 interface Props {
   tempReports: TempReport[];
   cleanReports: CleanReport[];
+  deliveryReports: DeliveryReport[];
   onDeleteTemp: (id: string) => void;
   onDeleteClean: (id: string) => void;
+  onDeleteDelivery: (id: string) => void;
   onToast: (msg: string) => void;
 }
-type Tab = "temp" | "clean" | "maand";
+type Tab = "temp" | "clean" | "delivery" | "maand";
 type CleanFreq = "dagelijks" | "wekelijks" | "maandelijks";
 
-function MonthlyPanel({ tempReports, cleanReports, onToast }: { tempReports: TempReport[]; cleanReports: CleanReport[]; onToast: (m: string) => void }) {
+function MonthlyPanel({ tempReports, cleanReports, deliveryReports, onToast }: { tempReports: TempReport[]; cleanReports: CleanReport[]; deliveryReports: DeliveryReport[]; onToast: (m: string) => void }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -21,11 +23,13 @@ function MonthlyPanel({ tempReports, cleanReports, onToast }: { tempReports: Tem
   const parse = (s: string) => { const p = s.split("/"); return p.length === 3 ? { m: parseInt(p[1]), y: parseInt(p[2]) } : null; };
   const fT = tempReports.filter(r => { const d = parse(r.date); return d && d.m === month && d.y === year; });
   const fC = cleanReports.filter(r => { const d = parse(r.datum); return d && d.m === month && d.y === year; });
-  const total = fT.length + fC.length;
+  const fD = deliveryReports.filter(r => { const d = parse(r.date); return d && d.m === month && d.y === year; });
+  const total = fT.length + fC.length + fD.length;
   const monthLabel = new Date(year, month - 1).toLocaleDateString("nl-BE", { month: "long", year: "numeric" });
   const nokT = fT.filter(r => r.overallStatus === "nok").length;
   const warnT = fT.filter(r => r.overallStatus === "warn").length;
   const doneC = fC.filter(r => r.overallStatus === "ok").length;
+  const nokD = fD.filter(r => r.overallStatus === "nok").length;
   return (
     <div className="card">
       <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
@@ -67,6 +71,14 @@ function MonthlyPanel({ tempReports, cleanReports, onToast }: { tempReports: Tem
                 {fC.length > 0 && <span className={doneC === fC.length ? "badge-ok" : "badge-warn"}>{doneC}/{fC.length} volledig</span>}
               </div>
             </div>
+            <div className="flex items-center justify-between text-sm">
+              <span style={{ color: "var(--text-muted)" }}>Leveringsrapporten</span>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{fD.length}</span>
+                {nokD > 0 && <span className="badge-nok">{nokD} afgekeurd</span>}
+                {fD.length > 0 && !nokD && <span className="badge-ok">Alles akkoord</span>}
+              </div>
+            </div>
             <div className="flex items-center justify-between text-xs pt-2" style={{ borderTop: "1px solid var(--border)", color: "var(--text-muted)" }}>
               <span>Totaal rapporten</span>
               <span className="font-semibold" style={{ color: "var(--text)" }}>{total}</span>
@@ -74,7 +86,7 @@ function MonthlyPanel({ tempReports, cleanReports, onToast }: { tempReports: Tem
           </div>
         )}
         <button
-          onClick={() => { if (!total) { onToast("Geen rapporten voor deze maand."); return; } downloadMonthlyOverview(month, year, tempReports, cleanReports); onToast("Maandoverzicht PDF gedownload"); }}
+          onClick={() => { if (!total) { onToast("Geen rapporten voor deze maand."); return; } downloadMonthlyOverview(month, year, tempReports, cleanReports, deliveryReports); onToast("Maandoverzicht PDF gedownload"); }}
           className={total === 0 ? "btn-secondary opacity-50 cursor-not-allowed" : "btn-primary"}
           disabled={total === 0}
         >
@@ -85,10 +97,10 @@ function MonthlyPanel({ tempReports, cleanReports, onToast }: { tempReports: Tem
   );
 }
 
-export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean, onToast }: Props) {
+export function Reports({ tempReports, cleanReports, deliveryReports, onDeleteTemp, onDeleteClean, onDeleteDelivery, onToast }: Props) {
   const [tab, setTab] = useState<Tab>("temp");
   const [cleanFreq, setCleanFreq] = useState<CleanFreq>("dagelijks");
-  const tabs: { key: Tab; label: string }[] = [{ key: "temp", label: "Temperatuur" }, { key: "clean", label: "Reiniging" }, { key: "maand", label: "Maandoverzicht" }];
+  const tabs: { key: Tab; label: string }[] = [{ key: "temp", label: "Temperatuur" }, { key: "clean", label: "Reiniging" }, { key: "delivery", label: "Levering" }, { key: "maand", label: "Maandoverzicht" }];
   const cleanFreqs: { key: CleanFreq; label: string }[] = [{ key: "dagelijks", label: "Dagelijks" }, { key: "wekelijks", label: "Wekelijks" }, { key: "maandelijks", label: "Maandelijks" }];
 
   const delT = (id: string) => { if (confirm("Verwijderen?")) { onDeleteTemp(id); onToast("Rapport verwijderd"); } };
@@ -212,7 +224,46 @@ export function Reports({ tempReports, cleanReports, onDeleteTemp, onDeleteClean
         </div>
       )}
 
-      {tab === "maand" && <MonthlyPanel tempReports={tempReports} cleanReports={cleanReports} onToast={onToast} />}
+      {tab === "delivery" && (
+        <div className="card overflow-hidden">
+          <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
+            <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Leveringsrapporten</span>
+          </div>
+          {deliveryReports.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm italic" style={{ color: "var(--text-muted)" }}>Nog geen leveringsrapporten opgeslagen</div>
+          ) : (
+            <div>
+              {deliveryReports.map((r, i) => {
+                const isNok = r.overallStatus === "nok";
+                return (
+                  <div key={r.id} className="px-5 py-4 flex flex-wrap items-start justify-between gap-3"
+                    style={{ borderBottom: i < deliveryReports.length - 1 ? "1px solid var(--beige-light)" : "none" }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>{r.supplier} — {r.date}</div>
+                      <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                        {r.productType === "koeling" ? "Koeling" : "Diepvries"} · {r.temperature} °C · Door: {r.employee || "—"} · {r.time}
+                      </div>
+                      <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                        <span className={isNok ? "badge-nok" : "badge-ok"}>{isNok ? "Afgekeurd" : "Akkoord"}</span>
+                        {r.rejected === "yes" && <span className="badge-nok">Temp. te hoog</span>}
+                        {r.visualCheck === "fail" && <span className="badge-nok">Visueel NOK</span>}
+                        {r.bbdCheck === "fail" && <span className="badge-nok">THT NOK</span>}
+                      </div>
+                      {r.visualNote && <div className="text-xs mt-1.5 italic" style={{ color: "var(--text-muted)" }}>"{r.visualNote}"</div>}
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => { downloadDeliveryReport(r); onToast("PDF gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">PDF</button>
+                      <button onClick={() => { if (confirm("Verwijderen?")) { onDeleteDelivery(r.id); onToast("Rapport verwijderd"); } }} className="btn-danger text-xs py-1.5 px-3">✕</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "maand" && <MonthlyPanel tempReports={tempReports} cleanReports={cleanReports} deliveryReports={deliveryReports} onToast={onToast} />}
     </div>
   );
 }

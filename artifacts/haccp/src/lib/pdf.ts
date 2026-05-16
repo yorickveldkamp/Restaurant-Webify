@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { TempReport, CleanReport, statusLabel } from "./data";
+import { TempReport, CleanReport, DeliveryReport, statusLabel } from "./data";
 
 // House style palette (mirrors src/index.css)
 const C = {
@@ -166,6 +166,26 @@ export function downloadTempReport(r: TempReport): void {
   );
 }
 
+export function downloadDeliveryReport(r: DeliveryReport): void {
+  const statusText = r.overallStatus === "nok" ? "Afgekeurd" : "Akkoord";
+  const sec = {
+    title: `Leveringsrapport – ${r.supplier} – ${r.date}`,
+    subtitle: `Gecontroleerd door: ${r.employee || "—"}  ·  Tijdstip: ${r.time}`,
+    headers: ["Onderdeel", "Resultaat", "Opmerking"],
+    rows: [
+      ["Leverancier", r.supplier, ""],
+      ["Type product", r.productType === "koeling" ? "Koeling" : "Diepvries", ""],
+      ["Temperatuur bij levering", `${r.temperature} °C`, r.rejected === "yes" ? "Norm overschreden — afgekeurd" : "Binnen norm"],
+      ["Visuele inspectie", r.visualCheck === "pass" ? "Akkoord" : "Afgekeurd", r.visualNote || ""],
+      ["THT / houdbaarheidsdatum", r.bbdCheck === "pass" ? "Akkoord" : "Afgekeurd", ""],
+      ["Eindoordeel", statusText, ""],
+    ],
+  };
+  makePDF(`Leveringsrapport – ${r.supplier} – ${r.date}`, [sec]).save(
+    "haccp_levering_" + r.supplier.replace(/\s/g, "_") + "_" + r.date.replace(/\//g, "-") + ".pdf"
+  );
+}
+
 export function downloadCleanReport(r: CleanReport): void {
   const sec = {
     title: `Reinigingsrapport – ${r.freq} – ${r.datum}`,
@@ -191,7 +211,8 @@ export function downloadMonthlyOverview(
   month: number,
   year: number,
   tempReports: TempReport[],
-  cleanReports: CleanReport[]
+  cleanReports: CleanReport[],
+  deliveryReports: DeliveryReport[] = []
 ): void {
   const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("nl-BE", { month: "long", year: "numeric" });
   const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
@@ -203,6 +224,11 @@ export function downloadMonthlyOverview(
 
   const filteredClean = cleanReports.filter((r) => {
     const d = parseDutchDate(r.datum);
+    return d && d.month === month && d.year === year;
+  });
+
+  const filteredDelivery = deliveryReports.filter((r) => {
+    const d = parseDutchDate(r.date);
     return d && d.month === month && d.year === year;
   });
 
@@ -255,6 +281,13 @@ export function downloadMonthlyOverview(
         filteredClean.length === 0
           ? "Geen reinigingen deze maand"
           : `${filteredClean.filter((r) => r.overallStatus === "ok").length} volledig afgevinkt`,
+      ],
+      [
+        "Leveringscontroles",
+        String(filteredDelivery.length),
+        filteredDelivery.length === 0
+          ? "Geen leveringen deze maand"
+          : `${filteredDelivery.filter((r) => r.overallStatus === "nok").length} afgekeurd`,
       ],
     ],
     startY: y,
@@ -318,6 +351,7 @@ export function downloadMonthlyOverview(
     doc.setFont("helvetica", "italic");
     doc.setTextColor(...C.textMuted);
     doc.text("Geen reinigingsrapporten opgeslagen voor deze maand.", 19, y + 2);
+    y += 12;
   } else {
     y += 2;
     filteredClean.forEach((r) => {
@@ -337,6 +371,45 @@ export function downloadMonthlyOverview(
         body: r.rows.map((row) => [
           row.task, row.checked ? "Gedaan" : "Open", row.tijdstip || "—", row.note || "",
         ]),
+        startY: y,
+        ...baseTableOptions,
+        styles: { ...baseTableOptions.styles, fontSize: 7.8, cellPadding: 2.2 },
+        didParseCell: colorizeStatusCell,
+      });
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 9;
+    });
+  }
+
+  // Delivery sections
+  sectionHeader("Leveringscontroles");
+  if (filteredDelivery.length === 0) {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(...C.textMuted);
+    doc.text("Geen leveringsrapporten opgeslagen voor deze maand.", 19, y + 2);
+    y += 12;
+  } else {
+    y += 2;
+    filteredDelivery.forEach((r) => {
+      if (y > 250) { doc.addPage(); y = 20; }
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...C.text);
+      const verdict = r.overallStatus === "nok" ? "Afgekeurd" : "Akkoord";
+      doc.text(`Levering – ${r.supplier} – ${r.date}  [${verdict}]`, 19, y);
+      y += 4;
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...C.textMuted);
+      doc.text(`Door: ${r.employee || "—"}  ·  ${r.productType === "koeling" ? "Koeling" : "Diepvries"}  ·  ${r.temperature} °C  ·  Tijdstip: ${r.time}`, 19, y);
+      y += 3;
+      autoTable(doc, {
+        head: [["Onderdeel", "Resultaat", "Opmerking"]],
+        body: [
+          ["Temperatuur bij levering", `${r.temperature} °C`, r.rejected === "yes" ? "Norm overschreden" : "Binnen norm"],
+          ["Visuele inspectie", r.visualCheck === "pass" ? "Akkoord" : "Afgekeurd", r.visualNote || ""],
+          ["THT / houdbaarheidsdatum", r.bbdCheck === "pass" ? "Akkoord" : "Afgekeurd", ""],
+        ],
         startY: y,
         ...baseTableOptions,
         styles: { ...baseTableOptions.styles, fontSize: 7.8, cellPadding: 2.2 },

@@ -278,7 +278,7 @@ function MainApp() {
             {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} autoFillParaaf={name} />}
             {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} autoFillDoor={name} />}
             {tab === "delivery" && <Delivery deliveryReports={deliveryReports} onSave={addDelivery} onDelete={delDelivery} onToast={showToast} autoFillEmployee={name} />}
-            {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onToast={showToast} />}
+            {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} deliveryReports={deliveryReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onDeleteDelivery={delDelivery} onToast={showToast} />}
             {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} onImportTemp={importTemp} onImportClean={importClean} onToast={showToast} />}
           </>
         )}
