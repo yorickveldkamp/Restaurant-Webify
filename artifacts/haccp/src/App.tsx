@@ -17,9 +17,10 @@ import { Cleaning } from "./pages/Cleaning";
 import { Delivery } from "./pages/Delivery";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
+import { Beleid } from "./pages/Beleid";
 import { Toast } from "./components/Toast";
 
-type Tab = "dashboard" | "temp" | "cleaning" | "delivery" | "reports" | "settings";
+type Tab = "dashboard" | "temp" | "cleaning" | "delivery" | "reports" | "settings" | "beleid";
 
 const NAV: { key: Tab; label: string }[] = [
   { key: "dashboard", label: "Dashboard" },
@@ -28,6 +29,7 @@ const NAV: { key: Tab; label: string }[] = [
   { key: "delivery", label: "Levering" },
   { key: "reports", label: "Rapporten" },
   { key: "settings", label: "Instellingen" },
+  { key: "beleid", label: "Beleid" },
 ];
 
 function MainApp() {
@@ -280,6 +282,7 @@ function MainApp() {
             {tab === "delivery" && <Delivery onSave={addDelivery} onToast={showToast} autoFillEmployee={name} />}
             {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} deliveryReports={deliveryReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onDeleteDelivery={delDelivery} onToast={showToast} />}
             {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} onImportTemp={importTemp} onImportClean={importClean} onToast={showToast} />}
+            {tab === "beleid" && <Beleid />}
           </>
         )}
       </main>
