@@ -1,28 +1,31 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import logo from "@assets/logo.png";
-import { TempReport, CleanReport, todayFull } from "./lib/data";
+import { TempReport, CleanReport, DeliveryReport, todayFull } from "./lib/data";
 import { loadTempReports, loadCleanReports, clearTempReports, clearCleanReports } from "./lib/storage";
 import { apiClearAllDrafts } from "./lib/api";
 import {
   apiGetTempReports, apiAddTempReport, apiDeleteTempReport,
   apiGetCleanReports, apiAddCleanReport, apiDeleteCleanReport,
   apiClearTempReports, apiClearCleanReports,
+  apiGetDeliveryReports, apiAddDeliveryReport, apiDeleteDeliveryReport,
 } from "./lib/api";
 import { NameProvider, useName } from "./contexts/NameContext";
 import { NamePrompt } from "./components/NamePrompt";
 import { Dashboard } from "./pages/Dashboard";
 import { Temperature } from "./pages/Temperature";
 import { Cleaning } from "./pages/Cleaning";
+import { Delivery } from "./pages/Delivery";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
 import { Toast } from "./components/Toast";
 
-type Tab = "dashboard" | "temp" | "cleaning" | "reports" | "settings";
+type Tab = "dashboard" | "temp" | "cleaning" | "delivery" | "reports" | "settings";
 
 const NAV: { key: Tab; label: string }[] = [
   { key: "dashboard", label: "Dashboard" },
   { key: "temp", label: "Temperatuur" },
   { key: "cleaning", label: "Reiniging" },
+  { key: "delivery", label: "Levering" },
   { key: "reports", label: "Rapporten" },
   { key: "settings", label: "Instellingen" },
 ];
@@ -32,6 +35,7 @@ function MainApp() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [tempReports, setTempReports] = useState<TempReport[]>([]);
   const [cleanReports, setCleanReports] = useState<CleanReport[]>([]);
+  const [deliveryReports, setDeliveryReports] = useState<DeliveryReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [toast, setToast] = useState("");
@@ -45,10 +49,12 @@ function MainApp() {
     (async () => {
       setLoading(true);
       try {
-        const [serverTemp, serverClean] = await Promise.all([
+        const [serverTemp, serverClean, serverDelivery] = await Promise.all([
           apiGetTempReports(),
           apiGetCleanReports(),
+          apiGetDeliveryReports(),
         ]);
+        setDeliveryReports(serverDelivery);
 
         if (!migrated.current) {
           migrated.current = true;
@@ -155,6 +161,27 @@ function MainApp() {
     } catch { showToast("Fout bij verwijderen"); }
   };
 
+  const addDelivery = async (r: DeliveryReport) => {
+    setSaveStatus("saving");
+    try {
+      await apiAddDeliveryReport(r);
+      setDeliveryReports(prev => [r, ...prev]);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch {
+      setSaveStatus("error");
+      showToast("Fout bij opslaan — probeer opnieuw");
+      throw new Error("save failed");
+    }
+  };
+
+  const delDelivery = async (id: string) => {
+    try {
+      await apiDeleteDeliveryReport(id);
+      setDeliveryReports(prev => prev.filter(r => r.id !== id));
+    } catch { showToast("Fout bij verwijderen"); }
+  };
+
   const clearData = async (type: "temp" | "cleaning" | "all") => {
     setSaveStatus("saving");
     try {
@@ -250,6 +277,7 @@ function MainApp() {
             {tab === "dashboard" && <Dashboard tempReports={tempReports} cleanReports={cleanReports} onNavigate={navigateTo} />}
             {tab === "temp" && <Temperature tempReports={tempReports} onSave={addTemp} onToast={showToast} autoFillParaaf={name} />}
             {tab === "cleaning" && <Cleaning onSave={addClean} onToast={showToast} autoFillDoor={name} />}
+            {tab === "delivery" && <Delivery deliveryReports={deliveryReports} onSave={addDelivery} onDelete={delDelivery} onToast={showToast} autoFillEmployee={name} />}
             {tab === "reports" && <Reports tempReports={tempReports} cleanReports={cleanReports} onDeleteTemp={delTemp} onDeleteClean={delClean} onToast={showToast} />}
             {tab === "settings" && <Settings onClear={clearData} currentName={name} onChangeName={() => setEditName(true)} onImportTemp={importTemp} onImportClean={importClean} onToast={showToast} />}
           </>

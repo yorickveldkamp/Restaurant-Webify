@@ -126,3 +126,31 @@ export function todayFull(): string {
 export function nowTime(): string {
   return new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
 }
+
+export const SUPPLIERS = ["Sinnesberger", "Bachmann", "Rumpold", "Overig"] as const;
+export type SupplierOption = typeof SUPPLIERS[number];
+
+export interface DeliveryReport {
+  id: string;
+  date: string;
+  time: string;
+  supplier: string;
+  productType: "koeling" | "diepvries";
+  temperature: string;
+  visualCheck: "pass" | "fail";
+  visualNote: string;
+  bbdCheck: "pass" | "fail";
+  employee: string;
+  rejected: "yes" | "no";
+  overallStatus: Status;
+  type: "delivery";
+}
+
+export function tempLimitForDelivery(type: "koeling" | "diepvries"): number {
+  return type === "koeling" ? 7 : -15;
+}
+
+export function deliveryStatus(r: Pick<DeliveryReport, "rejected" | "visualCheck" | "bbdCheck">): Status {
+  if (r.rejected === "yes" || r.visualCheck === "fail" || r.bbdCheck === "fail") return "nok";
+  return "ok";
+}

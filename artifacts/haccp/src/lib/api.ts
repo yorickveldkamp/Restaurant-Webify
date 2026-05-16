@@ -1,4 +1,4 @@
-import { TempReport, CleanReport } from "./data";
+import { TempReport, CleanReport, DeliveryReport } from "./data";
 
 const BASE = "/api";
 
@@ -74,6 +74,41 @@ export async function apiClearTempReports(): Promise<void> {
 export async function apiClearCleanReports(): Promise<void> {
   const reports = await apiGetCleanReports();
   await Promise.all(reports.map(r => apiDeleteCleanReport(r.id)));
+}
+
+export async function apiGetDeliveryReports(): Promise<DeliveryReport[]> {
+  const res = await fetch(`${BASE}/reports/delivery`);
+  if (!res.ok) throw new Error("Failed to load delivery reports");
+  const data = await res.json() as Record<string, unknown>[];
+  return data.map(r => ({
+    id: r.id as string,
+    date: r.date as string,
+    time: r.time as string,
+    supplier: r.supplier as string,
+    productType: r.productType as "koeling" | "diepvries",
+    temperature: r.temperature as string,
+    visualCheck: r.visualCheck as "pass" | "fail",
+    visualNote: (r.visualNote as string) ?? "",
+    bbdCheck: r.bbdCheck as "pass" | "fail",
+    employee: (r.employee as string) ?? "",
+    rejected: (r.rejected as "yes" | "no") ?? "no",
+    overallStatus: (r.overallStatus ?? null) as DeliveryReport["overallStatus"],
+    type: "delivery" as const,
+  }));
+}
+
+export async function apiAddDeliveryReport(report: DeliveryReport): Promise<void> {
+  const res = await fetch(`${BASE}/reports/delivery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(report),
+  });
+  if (!res.ok) throw new Error("Failed to save delivery report");
+}
+
+export async function apiDeleteDeliveryReport(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/reports/delivery/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete delivery report");
 }
 
 void norm; // suppress unused warning
