@@ -5,9 +5,7 @@ import {
 } from "../lib/data";
 
 interface Props {
-  deliveryReports: DeliveryReport[];
   onSave: (r: DeliveryReport) => Promise<void>;
-  onDelete: (id: string) => void;
   onToast: (msg: string) => void;
   autoFillEmployee: string;
 }
@@ -52,7 +50,7 @@ const PASS_FAIL_BTN = (
   </div>
 );
 
-export function Delivery({ deliveryReports, onSave, onDelete, onToast, autoFillEmployee }: Props) {
+export function Delivery({ onSave, onToast, autoFillEmployee }: Props) {
   const [supplier, setSupplier] = useState<string>("Sinnesberger");
   const [customSupplier, setCustomSupplier] = useState("");
   const [productType, setProductType] = useState<"koeling" | "diepvries">("koeling");
@@ -116,10 +114,6 @@ export function Delivery({ deliveryReports, onSave, onDelete, onToast, autoFillE
     } finally {
       setBusy(false);
     }
-  };
-
-  const del = (id: string) => {
-    if (confirm("Verwijderen?")) { onDelete(id); onToast("Rapport verwijderd"); }
   };
 
   return (
@@ -280,47 +274,6 @@ export function Delivery({ deliveryReports, onSave, onDelete, onToast, autoFillE
         </div>
       </form>
 
-      {/* Saved reports */}
-      {deliveryReports.length > 0 && (
-        <div className="card overflow-hidden">
-          <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
-            <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Geregistreerde leveringen</span>
-          </div>
-          <div>
-            {deliveryReports.map((r, i) => {
-              const isNok = r.overallStatus === "nok";
-              return (
-                <div
-                  key={r.id}
-                  className="px-5 py-4 flex flex-wrap items-start justify-between gap-3"
-                  style={{ borderBottom: i < deliveryReports.length - 1 ? "1px solid var(--beige-light)" : "none" }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                      {r.supplier} — {r.date}
-                    </div>
-                    <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                      {r.productType === "koeling" ? "Koeling" : "Diepvries"} · {r.temperature} °C · Door: {r.employee || "—"}
-                    </div>
-                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                      <span className={isNok ? "badge-nok" : "badge-ok"}>
-                        {isNok ? "Afgekeurd" : "Akkoord"}
-                      </span>
-                      {r.rejected === "yes" && <span className="badge-nok">Temp. te hoog</span>}
-                      {r.visualCheck === "fail" && <span className="badge-nok">Visueel NOK</span>}
-                      {r.bbdCheck === "fail" && <span className="badge-nok">THT NOK</span>}
-                    </div>
-                    {r.visualNote && (
-                      <div className="text-xs mt-1.5 italic" style={{ color: "var(--text-muted)" }}>"{r.visualNote}"</div>
-                    )}
-                  </div>
-                  <button onClick={() => del(r.id)} className="btn-danger text-xs py-1.5 px-3">✕</button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
