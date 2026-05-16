@@ -307,17 +307,6 @@ export function Hygiene({ leidinggevende, onSaveReport, onToast }: Props) {
             <label className="block text-xs mb-1.5 uppercase tracking-wide" style={{ color: "var(--text-muted)", fontSize: 11 }}>Datum</label>
             <div className="input-brand" style={{ minWidth: 140, background: "var(--beige-light)", color: "var(--text-muted)", cursor: "default" }}>{todayDate()}</div>
           </div>
-          <div>
-            <label className="block text-xs mb-1.5 uppercase tracking-wide" style={{ color: "var(--text-muted)", fontSize: 11 }}>Dienst</label>
-            <select value={shift} onChange={e => setShift(e.target.value)} className="input-brand" style={{ minWidth: 140 }}>
-              <option value="ochtend">Ochtend</option>
-              <option value="middag">Middag</option>
-              <option value="avond">Avond</option>
-            </select>
-          </div>
-          <div style={{ flex: 1, textAlign: "right" }}>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Leidinggevende: <strong style={{ color: "var(--text)" }}>{leidinggevende}</strong></div>
-          </div>
         </div>
 
         {/* Summary badges */}

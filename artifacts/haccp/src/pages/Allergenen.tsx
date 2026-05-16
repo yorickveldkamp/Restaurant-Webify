@@ -263,39 +263,6 @@ export function Allergenen() {
           </div>
         </div>
 
-        {/* Allergen exclusion filter — hidden in edit mode */}
-        {!editMode && (
-          <div className="card no-print" style={{ padding: "20px 24px", marginBottom: 16 }}>
-            <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>
-              Toon alleen gerechten zonder…
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {ALLERGENS.map(a => {
-                const active = excludeAllergens.has(a.key);
-                return (
-                  <button key={a.key} onClick={() => toggleExclude(a.key)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 5,
-                      padding: "5px 11px", fontSize: 12, fontWeight: active ? 700 : 400,
-                      borderRadius: 4, cursor: "pointer", transition: "all 0.15s",
-                      border: active ? "1px solid #a83232" : "1px solid var(--border)",
-                      background: active ? "#fdecea" : "var(--beige-light)",
-                      color: active ? "#a83232" : "var(--text)",
-                    }}>
-                    <span>{a.icon}</span> {a.label}
-                  </button>
-                );
-              })}
-            </div>
-            {excludeAllergens.size > 0 && (
-              <button onClick={() => setExcludeAllergens(new Set())}
-                style={{ marginTop: 10, fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-                Wis filters
-              </button>
-            )}
-          </div>
-        )}
-
         {/* Edit mode banner */}
         {editMode && (
           <div className="no-print" style={{ marginBottom: 12, padding: "12px 18px", background: "#fef9e7", border: "1px solid #f5e079", borderRadius: 8, fontSize: 13, color: "#5a4800", display: "flex", alignItems: "center", gap: 10 }}>
