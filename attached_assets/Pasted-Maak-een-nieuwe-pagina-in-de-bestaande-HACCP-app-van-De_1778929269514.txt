@@ -1,0 +1,118 @@
+Maak een nieuwe pagina in de bestaande HACCP-app van Der Drahtesel voor een interactieve allergenenmatrix. Voeg een route `/allergenen` toe (of bestand `allergenen.html`) consistent met de huisstijl van de app. Voeg ook een navigatielink toe vanuit het hoofdmenu.
+
+De pagina bevat twee onderdelen:
+
+---
+
+DEEL 1 — ALLERGENEN UITLEG (bovenaan de pagina)
+
+Toon een inleiding met de titel "Allergenenmatrix — Der Drahtesel" en de volgende tekst:
+"Conform EU-Verordening Nr. 1169/2011 zijn wij verplicht de 14 belangrijkste allergenen te vermelden. Neem bij twijfel altijd contact op met ons personeel. Kruisbesmetting in de keuken kan niet volledig worden uitgesloten."
+
+Toon daarna een legenda-balk met de 14 EU-allergenen als icoontjes/badges in twee rijen:
+1. Gluten (symbool: 🌾)
+2. Schaaldieren (🦐)
+3. Eieren (🥚)
+4. Vis (🐟)
+5. Pinda's (🥜)
+6. Soja (🫘)
+7. Melk/Lactose (🥛)
+8. Noten (🌰)
+9. Selderij (🌿)
+10. Mosterd (🟡)
+11. Sesam (⚪)
+12. Sulfiet/SO₂ (🍷)
+13. Lupine (🌸)
+14. Weekdieren (🐚)
+
+---
+
+DEEL 2 — INTERACTIEVE ALLERGENENMATRIX
+
+Maak een filterable HTML-tabel met alle gerechten uit het menu. Bovenaan filterbuttons per categorie: ALLE | VORSPEISEN | SUPPEN | SALATE | PASTA | FISCH | VEGETARISCH & VEGAN | FLEISCH | DESSERT | EISCOUPES
+
+Ook een filter per allergeen: checkboxes of toggle-buttons voor elk van de 14 allergenen, zodat gasten kunnen filteren op "toon alleen gerechten ZONDER dit allergeen".
+
+De tabel heeft de volgende kolommen:
+Gerecht | Prijs | Gluten | Ei | Melk | Vis | Schaal | Noten | Selderij | Mosterd | Sesam | Sulfiet | Soja | Pinda | Lupine | Weekdieren
+
+Gebruik ✓ voor "bevat dit allergeen", (✓) voor "mogelijk aanwezig / controleer leverancier", en leeglaten voor "bevat niet".
+
+Vul de volgende gegevens in:
+
+VORSPEISEN:
+Knoblauchbrot | €5 | ✓ | | ✓ | | | | | | | | | | |
+Bruschetta | €8 | ✓ | | | | | | | | | | | | |
+Burrata | €10 | ✓ | | ✓ | | | ✓ | | | | | | | |
+Brotkorb | €12 | ✓ | (✓) | ✓ | | | | | | | | | | |
+Garnelen | €12 | | | | | ✓ | | | | | | | | |
+Carpaccio vom Rind | €14 | | ✓ | ✓ | | | ✓ | | (✓) | | | | | |
+Überraschung Vorspeisen | €19 | mix | | | | | | | | | | | | |
+
+SUPPEN:
+Tomatensuppe | €6 | | | ✓ | | | | | | | | | | |
+Fritattensuppe | €6 | ✓ | ✓ | | | | | (✓) | | | | | | |
+
+SALATE:
+Salat Pfirsich & Burrata | €15 | | | ✓ | | | ✓ | | | | (✓) | | | |
+Salat Falafel & Gemüse (Vegan) | €15 | (✓) | | | | | | | | (✓) | | | | |
+Salat Ziegenkäse, Birne & Feigen | €15 | | | ✓ | | | ✓ | | | | | | | |
+Salat Brie | €15 | | | ✓ | | | ✓ | | | | | | | |
+Salat Falafel & Tzatziki | €15 | (✓) | | ✓ | | | | | | (✓) | | | | |
+
+PASTA:
+Tagliatelle Aglio e Olio | €15 | ✓ | ✓ | ✓ | | | | | | | | | | |
+Tagliatelle Pesto | €17 | ✓ | ✓ | ✓ | | | ✓ | | | | | | | |
+Orzo Spinat, Chorizo & Burrata | €18 | ✓ | ✓ | ✓ | | | ✓ | | | | | | | |
+
+FISCH:
+Lachs mit Wallnusskruste | €23 | | | ✓ | ✓ | | ✓ | | | | | | | |
+Lachs mit Garnelen | €26 | | | | ✓ | ✓ | | | | | | | | |
+
+VEGETARISCH & VEGAN:
+Flatbread Falafel & Tzatziki | €16 | ✓ | | ✓ | | | | | | (✓) | | | | |
+Kasnocken | €16 | ✓ | ✓ | ✓ | | | | | | | | | | |
+Veganer Burger | €18 | ✓ | | | | | | | | | | (✓) | | (✓) |
+Käsefondue | €25 | ✓ | | ✓ | | | | | | | ✓ | | | |
+
+FLEISCH:
+Wiener Schnitzel | €18 | ✓ | ✓ | | | | | | | | | | | |
+Cordon Bleu | €20 | ✓ | ✓ | ✓ | | | | | | | | | | |
+Mühlbacher Schnitzel | €24 | ✓ | ✓ | ✓ | | | | | | | | | | |
+Pulled Chicken Burger | €21 | ✓ | | | | | | | | | | | | |
+Hühnerspies Tzatziki | €23 | | | ✓ | | | | | | | | | | |
+Rumpsteak Chimichurri | €29 | | | | | | | (✓) | | | | | | |
+Spare Ribs | €23 | | | | | | | | | | (✓) | | | |
+Drahtesel Mix | €29 | ✓ | ✓ | | | | | | | | (✓) | | | |
+Jagapfandl | €21 | ✓ | ✓ | ✓ | | | | (✓) | | | | | | |
+Schnitzel Teller | €29 | ✓ | ✓ | ✓ | | | | | | | | | | |
+
+DESSERT:
+Tiramisu mit Lemon Curd | €11 | ✓ | ✓ | ✓ | | | | | | | (✓) | | | |
+Schokolade Cake | €9 | ✓ | ✓ | ✓ | | | | | | | | (✓) | | |
+Zuckerwaffel mit Erdbeeren | €11 | ✓ | ✓ | ✓ | | | | | | | | | | |
+Hausgemachter Kaiserschmarrn | €14 | ✓ | ✓ | ✓ | | | | | | | | | | |
+
+EISCOUPES:
+Karamelbecher | €8 | | | ✓ | | | ✓ | | | | | | | |
+Heisse Liebe | €9 | | | ✓ | | | | | | | | | | |
+Coupe Danmark | €8 | | | ✓ | | | | | | | | | | |
+Zitroneneis | €8 | | | ✓ | | | | | | | | | | |
+Joghurt Amarena | €8 | | | ✓ | | | | | | | | | | |
+
+---
+
+ONDERAAN DE PAGINA:
+Voeg een disclaimer toe:
+"⚠️ Deze allergenenlijst is opgesteld op basis van de ingrediënten van onze recepten (zomer 2026). (✓) = mogelijk aanwezig of te controleren bij leverancier. Kruisbesmetting in onze keuken kan niet volledig worden uitgesloten. Bij ernstige allergieën altijd ons personeel informeren. Laatste update: mei 2026."
+
+---
+
+STIJLVEREISTEN:
+- Gebruik bestaande CSS-kleuren/variabelen van de app
+- Kolommen met ✓ rood/oranje markeren, (✓) geel markeren
+- Mobiel-vriendelijke scrollbare tabel
+- Filterbuttons per categorie bovenaan (active state duidelijk zichtbaar)
+- Toggle "Toon alleen gerechten zonder [allergeen]" als interactieve checkboxes
+- Print-knop bovenaan (window.print())
+- Navigatielink vanuit hoofdmenu naar /allergenen
