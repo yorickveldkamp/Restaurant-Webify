@@ -19,6 +19,12 @@ function freshEmployee(emp: Employee): EmployeeHygiene {
   };
 }
 
+function statusDot(status: EmployeeHygiene["status"]) {
+  if (status === "approved") return <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: "#5a8a6a", marginRight: 6, flexShrink: 0 }} />;
+  if (status === "rejected") return <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: "#a83232", marginRight: 6, flexShrink: 0 }} />;
+  return <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: "#ccc", marginRight: 6, flexShrink: 0 }} />;
+}
+
 interface EmployeeCardProps {
   entry: EmployeeHygiene;
   leidinggevende: string;
@@ -27,7 +33,7 @@ interface EmployeeCardProps {
 
 function EmployeeCard({ entry, leidinggevende, onChange }: EmployeeCardProps) {
   const [rejectInput, setRejectInput] = useState(entry.rejectedReason || "");
-  const [showRejectForm, setShowRejectForm] = useState(entry.status === "rejected" && !entry.approvedAt);
+  const [showRejectForm, setShowRejectForm] = useState(false);
 
   const allChecked = entry.checks.every(Boolean);
 
@@ -39,11 +45,10 @@ function EmployeeCard({ entry, leidinggevende, onChange }: EmployeeCardProps) {
   };
 
   const approve = () => {
-    const now = nowTime();
     onChange({
       ...entry,
       status: "approved",
-      approvedAt: now,
+      approvedAt: nowTime(),
       approvedBy: leidinggevende,
       rejectedReason: "",
     });
@@ -83,22 +88,22 @@ function EmployeeCard({ entry, leidinggevende, onChange }: EmployeeCardProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)" }}>{entry.name}</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: "var(--text)" }}>{entry.name}</div>
           <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{entry.role}</div>
         </div>
         <div>
           {entry.status === "approved" && (
-            <span style={{ background: "#5a8a6a", color: "white", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+            <span style={{ background: "#5a8a6a", color: "white", padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
               ✓ Goedgekeurd {entry.approvedAt ? `om ${entry.approvedAt}` : ""}
             </span>
           )}
           {entry.status === "rejected" && (
-            <span style={{ background: "#a83232", color: "white", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+            <span style={{ background: "#a83232", color: "white", padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
               ✕ Afgekeurd
             </span>
           )}
           {entry.status === "pending" && (
-            <span style={{ background: "var(--beige)", color: "var(--text-muted)", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 500 }}>
+            <span style={{ background: "var(--beige)", color: "var(--text-muted)", padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 500 }}>
               In behandeling
             </span>
           )}
@@ -189,10 +194,9 @@ function EmployeeCard({ entry, leidinggevende, onChange }: EmployeeCardProps) {
         </div>
       )}
 
-      {/* Re-open or correct after rejection */}
       {entry.status === "rejected" && (
         <div className="flex gap-3">
-          <button onClick={() => { setShowRejectForm(false); approve(); }} className="btn-primary"
+          <button onClick={approve} className="btn-primary"
             style={{ flex: 1, fontSize: 13, padding: "9px 0", background: "#5a8a6a", borderColor: "#5a8a6a" }}>
             ✓ Alsnog goedkeuren
           </button>
@@ -203,7 +207,6 @@ function EmployeeCard({ entry, leidinggevende, onChange }: EmployeeCardProps) {
         </div>
       )}
 
-      {/* Re-open if approved */}
       {entry.status === "approved" && (
         <button onClick={reopen} className="btn-secondary"
           style={{ fontSize: 12, padding: "6px 14px" }}>
@@ -225,9 +228,11 @@ export function Hygiene({ leidinggevende, onSaveReport, onToast }: Props) {
     const stored = loadEmployees();
     return stored.length ? stored : DEFAULT_EMPLOYEES;
   });
-  const [entries, setEntries] = useState<EmployeeHygiene[]>(() =>
-    (loadEmployees().length ? loadEmployees() : DEFAULT_EMPLOYEES).map(freshEmployee)
-  );
+  const [entries, setEntries] = useState<EmployeeHygiene[]>(() => {
+    const stored = loadEmployees();
+    return (stored.length ? stored : DEFAULT_EMPLOYEES).map(freshEmployee);
+  });
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const [shift, setShift] = useState<string>("ochtend");
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState("");
@@ -257,12 +262,14 @@ export function Hygiene({ leidinggevende, onSaveReport, onToast }: Props) {
     setEmployees(newEmps);
     saveEmployees(newEmps);
     setEntries(prev => prev.filter((_, idx) => idx !== i));
+    if (selectedIdx >= newEmps.length) setSelectedIdx(Math.max(0, newEmps.length - 1));
     setSaved(false);
   };
 
   const resetSession = () => {
     if (!confirm("Nieuwe controlebeurt starten? De huidige invoer wordt gewist.")) return;
     setEntries(employees.map(freshEmployee));
+    setSelectedIdx(0);
     setSaved(false);
   };
 
@@ -286,6 +293,7 @@ export function Hygiene({ leidinggevende, onSaveReport, onToast }: Props) {
   const approvedCount = entries.filter(e => e.status === "approved").length;
   const rejectedCount = entries.filter(e => e.status === "rejected").length;
   const pendingCount  = entries.filter(e => e.status === "pending").length;
+  const currentEntry = entries[selectedIdx];
 
   return (
     <div className="space-y-5" style={{ maxWidth: 680, margin: "0 auto" }}>
@@ -320,30 +328,86 @@ export function Hygiene({ leidinggevende, onSaveReport, onToast }: Props) {
         </div>
       </div>
 
-      {/* Employee cards */}
-      {entries.map((entry, i) => (
-        <EmployeeCard
-          key={`${entry.name}-${i}`}
-          entry={entry}
-          leidinggevende={leidinggevende}
-          onChange={upd => updateEntry(i, upd)}
-        />
-      ))}
+      {/* Employee selector */}
+      {employees.length > 0 && (
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--text-muted)" }}>Medewerker selecteren</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {entries.map((entry, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedIdx(i)}
+                style={{
+                  display: "flex", alignItems: "center",
+                  padding: "7px 16px", borderRadius: 6,
+                  border: selectedIdx === i
+                    ? entry.status === "approved" ? "2px solid #5a8a6a"
+                    : entry.status === "rejected" ? "2px solid #a83232"
+                    : "2px solid var(--sage)"
+                    : "1px solid var(--border)",
+                  background: selectedIdx === i
+                    ? entry.status === "approved" ? "#f0f7f2"
+                    : entry.status === "rejected" ? "#fdf2f2"
+                    : "var(--beige-light)"
+                    : "white",
+                  cursor: "pointer",
+                  fontWeight: selectedIdx === i ? 700 : 400,
+                  fontSize: 13,
+                  color: "var(--text)",
+                  transition: "all 0.15s",
+                }}
+              >
+                {statusDot(entry.status)}
+                {entry.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {entries.length === 0 && (
+      {/* Single employee card */}
+      {currentEntry ? (
+        <EmployeeCard
+          key={`${currentEntry.name}-${selectedIdx}`}
+          entry={currentEntry}
+          leidinggevende={leidinggevende}
+          onChange={upd => updateEntry(selectedIdx, upd)}
+        />
+      ) : (
         <div className="card" style={{ padding: "40px", textAlign: "center" }}>
           <div style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>Geen medewerkers. Voeg medewerkers toe via "Medewerkers beheren".</div>
+        </div>
+      )}
+
+      {/* Navigation between employees */}
+      {employees.length > 1 && (
+        <div className="flex justify-between">
+          <button
+            onClick={() => setSelectedIdx(i => Math.max(0, i - 1))}
+            disabled={selectedIdx === 0}
+            className="btn-secondary"
+            style={{ opacity: selectedIdx === 0 ? 0.4 : 1 }}
+          >
+            ← Vorige
+          </button>
+          <span style={{ fontSize: 12, color: "var(--text-muted)", alignSelf: "center" }}>
+            {selectedIdx + 1} van {employees.length}
+          </span>
+          <button
+            onClick={() => setSelectedIdx(i => Math.min(employees.length - 1, i + 1))}
+            disabled={selectedIdx === employees.length - 1}
+            className="btn-secondary"
+            style={{ opacity: selectedIdx === employees.length - 1 ? 0.4 : 1 }}
+          >
+            Volgende →
+          </button>
         </div>
       )}
 
       {/* Actions */}
       <div className="card" style={{ padding: "18px 22px" }}>
         <div className="flex flex-wrap gap-3">
-          <button
-            onClick={saveReport}
-            className="btn-primary"
-            style={{ flex: 1, minWidth: 200 }}
-          >
+          <button onClick={saveReport} className="btn-primary" style={{ flex: 1, minWidth: 200 }}>
             {saved ? "✓ Rapport opgeslagen" : "Opslaan als rapport"}
           </button>
           <button onClick={resetSession} className="btn-secondary">

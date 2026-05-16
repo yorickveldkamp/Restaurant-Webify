@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { TempReport, CleanReport, DeliveryReport, statusLabel } from "./data";
+import { TempReport, CleanReport, DeliveryReport, HygieneReport, HYGIENE_CHECKS, statusLabel } from "./data";
 
 // House style palette (mirrors src/index.css)
 const C = {
@@ -200,6 +200,71 @@ export function downloadCleanReport(r: CleanReport): void {
   );
 }
 
+export function downloadHygieneReport(r: HygieneReport): void {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  const printDate = new Date().toLocaleDateString("nl-BE", { day: "numeric", month: "long", year: "numeric" });
+  const shiftLabel = r.shift.charAt(0).toUpperCase() + r.shift.slice(1);
+
+  drawHeader(doc, `Hygiënerapport – ${r.date} – ${shiftLabel}dienst`, `Leidinggevende: ${r.savedBy || "—"}  ·  Opgeslagen om ${r.savedAt}`, printDate);
+
+  let y = 42;
+
+  r.employees.forEach((emp) => {
+    if (y > 240) { doc.addPage(); y = 20; }
+
+    // Employee name block
+    const statusText = emp.status === "approved" ? "Goedgekeurd" : emp.status === "rejected" ? "Afgekeurd" : "Niet beoordeeld";
+    const statusColor = emp.status === "approved" ? C.ok : emp.status === "rejected" ? C.nok : C.textMuted;
+
+    doc.setFillColor(...C.sageDark);
+    doc.rect(14, y - 4, 2.5, 7, "F");
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...C.text);
+    doc.text(`${emp.name}  —  ${emp.role}`, 19, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...statusColor);
+    doc.text(statusText, W - 14, y, { align: "right" });
+    y += 3;
+
+    if (emp.status === "approved" && emp.approvedAt) {
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...C.textMuted);
+      doc.text(`Goedgekeurd om ${emp.approvedAt} door ${emp.approvedBy || "—"}`, 19, y + 1);
+      y += 4;
+    }
+    if (emp.status === "rejected" && emp.rejectedReason) {
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(...C.nok);
+      doc.text(`Reden afkeuring: ${emp.rejectedReason}`, 19, y + 1);
+      y += 4;
+    }
+    y += 2;
+
+    autoTable(doc, {
+      head: [["Controlepunt", "Status"]],
+      body: HYGIENE_CHECKS.map((label, i) => [label, emp.checks[i] ? "✓ OK" : "✗ Niet akkoord"]),
+      startY: y,
+      ...baseTableOptions,
+      styles: { ...baseTableOptions.styles, fontSize: 8 },
+      columnStyles: { 1: { halign: "center" as const, cellWidth: 32 } },
+      didParseCell: (d) => {
+        if (d.section !== "body" || d.column.index !== 1) return;
+        const v = String(d.cell.raw || "");
+        if (v.startsWith("✓")) { d.cell.styles.textColor = C.ok; d.cell.styles.fontStyle = "bold"; }
+        else { d.cell.styles.textColor = C.nok; d.cell.styles.fontStyle = "bold"; }
+      },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  });
+
+  drawFooter(doc, `HACCP – Hygiënerapport – ${r.date} ${shiftLabel}dienst`);
+  doc.save(`haccp_hygiene_${r.date.replace(/\//g, "-")}_${r.shift}.pdf`);
+}
+
 /** Parse a Dutch date string "dd/mm/yyyy" → { month: 1-12, year: number } */
 function parseDutchDate(dateStr: string): { month: number; year: number } | null {
   const parts = dateStr.split("/");
@@ -212,7 +277,8 @@ export function downloadMonthlyOverview(
   year: number,
   tempReports: TempReport[],
   cleanReports: CleanReport[],
-  deliveryReports: DeliveryReport[] = []
+  deliveryReports: DeliveryReport[] = [],
+  hygieneReports: HygieneReport[] = []
 ): void {
   const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("nl-BE", { month: "long", year: "numeric" });
   const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
@@ -228,6 +294,11 @@ export function downloadMonthlyOverview(
   });
 
   const filteredDelivery = deliveryReports.filter((r) => {
+    const d = parseDutchDate(r.date);
+    return d && d.month === month && d.year === year;
+  });
+
+  const filteredHygiene = hygieneReports.filter((r) => {
     const d = parseDutchDate(r.date);
     return d && d.month === month && d.year === year;
   });
@@ -288,6 +359,17 @@ export function downloadMonthlyOverview(
         filteredDelivery.length === 0
           ? "Geen leveringen deze maand"
           : `${filteredDelivery.filter((r) => r.overallStatus === "nok").length} afgekeurd`,
+      ],
+      [
+        "Hygiënecontroles",
+        String(filteredHygiene.length),
+        filteredHygiene.length === 0
+          ? "Geen hygiënerapporten deze maand"
+          : (() => {
+              const allRejected = filteredHygiene.reduce((acc, r) => acc + r.employees.filter(e => e.status === "rejected").length, 0);
+              const allApproved = filteredHygiene.reduce((acc, r) => acc + r.employees.filter(e => e.status === "approved").length, 0);
+              return allRejected > 0 ? `${allRejected} afkeuringen, ${allApproved} goedkeuringen` : `${allApproved} medewerkers goedgekeurd`;
+            })(),
       ],
     ],
     startY: y,
@@ -414,6 +496,54 @@ export function downloadMonthlyOverview(
         ...baseTableOptions,
         styles: { ...baseTableOptions.styles, fontSize: 7.8, cellPadding: 2.2 },
         didParseCell: colorizeStatusCell,
+      });
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 9;
+    });
+  }
+
+  // Hygiene section
+  sectionHeader("Hygiënecontroles");
+  if (filteredHygiene.length === 0) {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(...C.textMuted);
+    doc.text("Geen hygiënerapporten opgeslagen voor deze maand.", 19, y + 2);
+    y += 12;
+  } else {
+    y += 2;
+    filteredHygiene.forEach((r) => {
+      if (y > 250) { doc.addPage(); y = 20; }
+      const shiftLabel = r.shift.charAt(0).toUpperCase() + r.shift.slice(1);
+      const rejCount = r.employees.filter(e => e.status === "rejected").length;
+      const verdict = rejCount > 0 ? `${rejCount} afgekeurd` : "Alles goedgekeurd";
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...C.text);
+      doc.text(`Hygiëne – ${r.date} ${shiftLabel}dienst  [${verdict}]`, 19, y);
+      y += 4;
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...C.textMuted);
+      doc.text(`Leidinggevende: ${r.savedBy || "—"}  ·  Opgeslagen om ${r.savedAt}`, 19, y);
+      y += 3;
+      autoTable(doc, {
+        head: [["Medewerker", "Functie", "Aangevinkt", "Status", "Opmerking"]],
+        body: r.employees.map(e => [
+          e.name,
+          e.role,
+          `${e.checks.filter(Boolean).length}/${HYGIENE_CHECKS.length}`,
+          e.status === "approved" ? "Goedgekeurd" : e.status === "rejected" ? "Afgekeurd" : "Wachtend",
+          e.status === "rejected" ? (e.rejectedReason || "") : (e.approvedAt ? `Om ${e.approvedAt}` : ""),
+        ]),
+        startY: y,
+        ...baseTableOptions,
+        styles: { ...baseTableOptions.styles, fontSize: 7.8, cellPadding: 2.2 },
+        didParseCell: (d) => {
+          if (d.section !== "body" || d.column.index !== 3) return;
+          const v = String(d.cell.raw || "");
+          if (v === "Goedgekeurd") { d.cell.styles.textColor = C.ok; d.cell.styles.fontStyle = "bold"; }
+          else if (v === "Afgekeurd") { d.cell.styles.textColor = C.nok; d.cell.styles.fontStyle = "bold"; }
+        },
       });
       y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 9;
     });

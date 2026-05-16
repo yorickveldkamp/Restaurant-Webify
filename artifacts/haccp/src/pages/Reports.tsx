@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { TempReport, CleanReport, DeliveryReport, HygieneReport, HYGIENE_CHECKS, statusLabel } from "../lib/data";
-import { downloadTempReport, downloadCleanReport, downloadDeliveryReport, exportAllTempCSV, exportAllCleanCSV, downloadMonthlyOverview } from "../lib/pdf";
+import { downloadTempReport, downloadCleanReport, downloadDeliveryReport, downloadHygieneReport, exportAllTempCSV, exportAllCleanCSV, downloadMonthlyOverview } from "../lib/pdf";
 import { saveHygieneReports } from "../lib/storage";
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
 type Tab = "temp" | "clean" | "delivery" | "hygiene" | "maand";
 type CleanFreq = "dagelijks" | "wekelijks" | "maandelijks";
 
-function MonthlyPanel({ tempReports, cleanReports, deliveryReports, onToast }: { tempReports: TempReport[]; cleanReports: CleanReport[]; deliveryReports: DeliveryReport[]; onToast: (m: string) => void }) {
+function MonthlyPanel({ tempReports, cleanReports, deliveryReports, hygieneReports, onToast }: { tempReports: TempReport[]; cleanReports: CleanReport[]; deliveryReports: DeliveryReport[]; hygieneReports: HygieneReport[]; onToast: (m: string) => void }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -27,12 +27,14 @@ function MonthlyPanel({ tempReports, cleanReports, deliveryReports, onToast }: {
   const fT = tempReports.filter(r => { const d = parse(r.date); return d && d.m === month && d.y === year; });
   const fC = cleanReports.filter(r => { const d = parse(r.datum); return d && d.m === month && d.y === year; });
   const fD = deliveryReports.filter(r => { const d = parse(r.date); return d && d.m === month && d.y === year; });
-  const total = fT.length + fC.length + fD.length;
+  const fH = hygieneReports.filter(r => { const d = parse(r.date); return d && d.m === month && d.y === year; });
+  const total = fT.length + fC.length + fD.length + fH.length;
   const monthLabel = new Date(year, month - 1).toLocaleDateString("nl-BE", { month: "long", year: "numeric" });
   const nokT = fT.filter(r => r.overallStatus === "nok").length;
   const warnT = fT.filter(r => r.overallStatus === "warn").length;
   const doneC = fC.filter(r => r.overallStatus === "ok").length;
   const nokD = fD.filter(r => r.overallStatus === "nok").length;
+  const rejH = fH.reduce((acc, r) => acc + r.employees.filter(e => e.status === "rejected").length, 0);
   return (
     <div className="card">
       <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)", background: "var(--beige-light)" }}>
@@ -82,6 +84,14 @@ function MonthlyPanel({ tempReports, cleanReports, deliveryReports, onToast }: {
                 {fD.length > 0 && !nokD && <span className="badge-ok">Alles akkoord</span>}
               </div>
             </div>
+            <div className="flex items-center justify-between text-sm">
+              <span style={{ color: "var(--text-muted)" }}>Hygiënecontroles</span>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{fH.length}</span>
+                {rejH > 0 && <span className="badge-nok">{rejH} afgekeurd</span>}
+                {fH.length > 0 && !rejH && <span className="badge-ok">Alles goedgekeurd</span>}
+              </div>
+            </div>
             <div className="flex items-center justify-between text-xs pt-2" style={{ borderTop: "1px solid var(--border)", color: "var(--text-muted)" }}>
               <span>Totaal rapporten</span>
               <span className="font-semibold" style={{ color: "var(--text)" }}>{total}</span>
@@ -89,7 +99,7 @@ function MonthlyPanel({ tempReports, cleanReports, deliveryReports, onToast }: {
           </div>
         )}
         <button
-          onClick={() => { if (!total) { onToast("Geen rapporten voor deze maand."); return; } downloadMonthlyOverview(month, year, tempReports, cleanReports, deliveryReports); onToast("Maandoverzicht PDF gedownload"); }}
+          onClick={() => { if (!total) { onToast("Geen rapporten voor deze maand."); return; } downloadMonthlyOverview(month, year, tempReports, cleanReports, deliveryReports, hygieneReports); onToast("Maandoverzicht PDF gedownload"); }}
           className={total === 0 ? "btn-secondary opacity-50 cursor-not-allowed" : "btn-primary"}
           disabled={total === 0}
         >
@@ -308,6 +318,7 @@ export function Reports({ tempReports, cleanReports, deliveryReports, hygieneRep
                             alert(`Hygiënerapport — ${r.date} ${r.shift}dienst\nDoor: ${r.savedBy}\n\n${lines.join("\n")}`);
                           }}
                           className="btn-secondary text-xs py-1.5 px-3">Bekijken</button>
+                        <button onClick={() => { downloadHygieneReport(r); onToast("PDF gedownload"); }} className="btn-secondary text-xs py-1.5 px-3">PDF</button>
                         <button onClick={() => { if (confirm("Verwijderen?")) { onDeleteHygiene(r.id); onToast("Rapport verwijderd"); } }} className="btn-danger text-xs py-1.5 px-3">✕</button>
                       </div>
                     </div>
@@ -326,7 +337,7 @@ export function Reports({ tempReports, cleanReports, deliveryReports, hygieneRep
         </div>
       )}
 
-      {tab === "maand" && <MonthlyPanel tempReports={tempReports} cleanReports={cleanReports} deliveryReports={deliveryReports} onToast={onToast} />}
+      {tab === "maand" && <MonthlyPanel tempReports={tempReports} cleanReports={cleanReports} deliveryReports={deliveryReports} hygieneReports={hygieneReports} onToast={onToast} />}
     </div>
   );
 }
